@@ -1,147 +1,77 @@
-# relay
+# skills
 
-A Claude Code skill for unattended work that runs for hours without rotting.
+Agent skills for long-running engineering work. Written once as `SKILL.md`,
+usable in every agent that reads the open standard — Claude Code, Codex,
+Gemini CLI, Cursor and others.
 
-You give it a duration and a mission. It builds an isolated git worktree, seeds
-a backlog, opens a draft PR, and then works — landing commits and keeping a
-ledger — until the clock runs out or you stop it. You come back to a reviewable
-PR and a document that explains it.
+No conversion step and no per-tool copies. A skill here is a folder with a
+`SKILL.md` in it, which is exactly what each of those tools already looks for.
+The installer's whole job is putting the folder where each one looks.
 
-```
-/relay 4h  fix the settings UI to match the design system
-/relay 24h audit the API surface for auth gaps
-/relay status
-/relay stop
-```
+## The skills
 
-## The problem it solves
-
-A long unattended session fails for one reason: the session doing the work is
-also the thing remembering it. Hours in, the transcript is mostly its own
-exhaust. Compaction throws away the operating discipline along with the noise,
-and iteration 30 re-litigates what iteration 4 already settled.
-
-The name is the mechanism. Like a relay race, each leg is run by someone fresh,
-and the only thing that crosses the handoff is the baton:
-
-```
-iteration 1     iteration 2     iteration 8      iteration 9
-fresh process   fresh process   compaction       fresh process
-     |               |               |                |
-   exits           exits           exits            exits
-─────────────────────────────────────────────────────────────
-  docs/<slug>.md  — read, appended, committed — persists
-```
-
-No arrow runs between the processes. Each one is a new `claude -p` that learns
-what happened by reading the ledger and `git log`, does exactly one unit of
-work, commits, and dies. Nothing lives long enough to rot, at four hours or at
-twenty-four.
-
-**Compaction moves from the transcript to the ledger.** Every eighth iteration
-writes no code: it reconciles the ledger against `git log`, runs the full gate
-suite, and shrinks the file. Unlike a transcript summary, this one is checkable
-— a claim no commit supports gets deleted instead of inherited.
+| Skill | What it does |
+|---|---|
+| [`relay`](skills/relay) | Unattended autonomous work for a stated duration — 4 hours or 24 — on its own worktree and draft PR. Each iteration is a fresh process handing a committed ledger to the next, so nothing lives long enough to suffer context rot. |
 
 ## Install
 
+Every agent on your machine, in one command:
+
+```bash
+git clone https://github.com/ritmillio/skills.git
+cd skills
+./scripts/install.sh
 ```
-/plugin marketplace add ritmillio/claude-relay
+
+It detects which agents you have, symlinks the skills into each, and tells you
+what it did. Because they are symlinks, `git pull` updates every tool at once.
+
+```bash
+./scripts/install.sh --list              # what is installed where
+./scripts/install.sh --tool codex        # just one agent
+./scripts/install.sh --scope project     # into ./.<tool>/skills of the current repo
+./scripts/install.sh --copy relay        # standalone copy instead of a symlink
+./scripts/install.sh --uninstall         # take them back out
+```
+
+Claude Code users can skip the clone entirely and install through the plugin
+marketplace, which also handles updates:
+
+```
+/plugin marketplace add ritmillio/skills
 /plugin install relay@ritmillio-tools
 ```
 
-Or try it without installing:
+Per-tool paths and project-vs-user scope: [INSTALLATION.md](INSTALLATION.md).
 
-```
-claude --plugin-dir /path/to/claude-relay/plugins/relay
-```
+## What "works everywhere" actually means
 
-Requires `git`, `jq`, and the `claude` CLI on `PATH`. `gh` if you want the draft
-PR opened for you.
+`SKILL.md` is an open format: YAML frontmatter with a `name` and a
+`description`, then Markdown instructions, optionally beside `references/`,
+`scripts/` and `assets/`. Agents read the description to decide when a skill is
+relevant, then load the body.
 
-## Configure it for your repo
+That much is genuinely portable. Two things are not, and this repo is explicit
+about both rather than papering over them:
 
-A relay is only as good as its idea of *done*. Create **`.claude/relay.md`** in
-your repository:
+- **Slash-command invocation** is a Claude Code convenience. In other agents you
+  ask for the skill by name or let the description trigger it.
+- **Bundled scripts** need an absolute path, and the skill directory sits
+  somewhere different in each tool. Skills here resolve it at runtime instead of
+  assuming, and `relay` shows the pattern.
 
-```markdown
-## Gates
+## Add your own
 
-Per-iteration:  npm test -- --run <touched area>
-Full (compaction): npm run typecheck && npm test && npm run build
-
-## Conventions
-
-- Branch names: feat/<slug>
-- Conventional commits
-- Never touch db/migrations without a generated migration in the same commit
-
-## Never
-
-- Deploy, publish, or email
-- The staging database
+```bash
+./scripts/new-skill.sh my-skill --description "What it does and when to use it"
 ```
 
-The skill reads it before every run. If it is missing, it derives a first
-version from your `package.json`, CI config and `CLAUDE.md`, shows it to you,
-and writes it once you agree. It never removes a safety rule — only adds.
+Scaffolds `skills/my-skill/SKILL.md`, writes the Claude Code plugin manifest,
+and registers it in the marketplace so it is installable rather than merely
+present. Then write the body and run `./scripts/install.sh my-skill`.
 
-## Keeping the machine awake
-
-The most common way a long run dies is not context rot. It is the machine going
-to sleep. What you get depends on the platform, and the launcher prints exactly
-which one you have:
-
-| Platform | Guard | Survives a closed lid? |
-|---|---|---|
-| macOS | `caffeinate -ims`, held for the life of the run | **No.** A shut laptop sleeps regardless |
-| Linux (systemd) | `systemd-inhibit` on idle, sleep and the lid switch | Yes |
-| Linux (no systemd) | none; headless boxes usually do not sleep | n/a |
-| Windows | **none available from a shell** | No |
-
-On Windows, set this yourself before a long run:
-
-```
-powercfg /change standby-timeout-ac 0
-```
-
-The skill will not pretend it has a guard it does not have.
-
-## What it will never do
-
-Enforced in the brief every single iteration, not just at setup:
-
-- Never merge a pull request
-- Never push to a protected branch
-- Never write to a shared or production database
-- Never take an irreversible or outward-facing action — those go into a
-  `## For the founder` section of the ledger for you to decide
-
-It also asserts the expected branch on **every** iteration and halts on drift,
-because in a shared checkout another session can move it underneath you.
-
-## How the pieces fit
-
-| Piece | Where | Role |
-|---|---|---|
-| Ledger | `docs/<slug>.md`, committed | The run's entire memory, and your read when you return |
-| Brief | `<worktree>/.loop/brief.md` | The prompt each fresh process gets |
-| Relay | `scripts/relay.sh`, detached | Starts processes, asserts invariants, records outcomes. Talks to no model |
-| Worktree | beside your repo | Isolation from whatever else you have checked out |
-
-Watch it with `tail -f <worktree>/.loop/relay.log`. Stop it with
-`touch <worktree>/.loop/STOP` — it finishes the current iteration and exits.
-
-The relay ends on any of: the stop file, the hour budget, the iteration cap,
-three consecutive iterations that landed no commit, or a branch drift. It pushes
-after every iteration that commits, so the PR stays current even if the run ends
-badly.
-
-## Cost
-
-Each iteration is a separate model session, so spend scales with iteration count
-rather than session length. Budget accordingly before a 24-hour run; there is a
-per-iteration `--budget` flag and no total ceiling.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for what makes a skill worth writing.
 
 ## License
 

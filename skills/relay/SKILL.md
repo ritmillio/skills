@@ -47,10 +47,10 @@ backlog to seed, how deep each item can be, whether the setup is worth it.
 |---|---|---|
 | **Ledger** | `docs/<slug>.md`, committed | The run's entire memory, and the user's read when they return |
 | **Brief** | `<worktree>/.loop/brief.md` | The prompt each fresh process gets; bounded by construction |
-| **Relay** | `${CLAUDE_PLUGIN_ROOT}/scripts/relay.sh`, detached | Starts processes, asserts invariants, records outcomes. Talks to no model |
+| **Relay** | `$SKILL_DIR/scripts/relay.sh`, detached | Starts processes, asserts invariants, records outcomes. Talks to no model |
 | **Worktree** | sibling of the repo | Isolation. A shared checkout gets its branch flipped by another session |
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/brief.md`, `compaction-brief.md`,
+Read `$SKILL_DIR/references/brief.md`, `compaction-brief.md`,
 `ledger-template.md` and `gates.md` before writing any of them.
 
 ## First: the host repo's gates
@@ -68,6 +68,21 @@ inherits it, and it gets better each time something bites.
 are true in every repo.
 
 ## Workflow
+
+### 0. Locate this skill on disk
+
+The scripts live in `scripts/` beside this SKILL.md, but the path depends on
+which agent loaded it. Resolve it once, then reuse `$SKILL_DIR`:
+
+```bash
+for d in "${CLAUDE_PLUGIN_ROOT:-}" ~/.claude/skills/relay ~/.codex/skills/relay \
+         ~/.gemini/skills/relay ~/.cursor/skills/relay ./.claude/skills/relay; do
+  [ -x "$d/scripts/relay.sh" ] && SKILL_DIR="$d" && break
+done
+```
+
+If none match, the skill is installed somewhere non-standard: find it with
+`find ~ -name relay.sh -path '*relay/scripts/*' 2>/dev/null | head -1`.
 
 ### 1. Settle the mission (short)
 
@@ -88,7 +103,7 @@ wants a deep backlog. If you cannot find 6 real items, say so.
 ### 3. Set up
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh" --branch feat/<slug> --base main
+"$SKILL_DIR/scripts/setup.sh" --branch feat/<slug> --base main
 ```
 
 Fresh worktree beside the repo, env files copied, deps installed, `.loop/`
@@ -109,7 +124,7 @@ so there is a URL even if the first iteration fails.
 ### 5. Launch detached
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/scripts/launch.sh" \
+"$SKILL_DIR/scripts/launch.sh" \
   --dir <worktree> --ledger docs/<slug>.md --branch feat/<slug> \
   --hours <duration> --model opus --compact-every 8
 ```

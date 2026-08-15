@@ -1,15 +1,24 @@
 {
   "name": "ritmillio-tools",
-  "owner": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
-  "description": "Claude Code skills for long-running and unattended engineering work.",
+  "owner": {
+    "name": "Zoltan Fodor",
+    "url": "https://github.com/ritmillio"
+  },
+  "description": "Cross-agent skills for long-running and unattended engineering work. SKILL.md format, works in Claude Code, Codex, Gemini CLI, Cursor and anything else that reads the open standard.",
   "plugins": [
     {
       "name": "relay",
-      "source": "./plugins/relay",
+      "source": "./skills/relay",
       "description": "Unattended autonomous work for a stated duration, run as fresh processes handing off a committed ledger. No context rot.",
       "version": "0.1.0",
       "category": "workflow",
-      "tags": ["unattended", "long-running", "automation", "git-worktree", "context-management"]
+      "tags": [
+        "unattended",
+        "long-running",
+        "automation",
+        "git-worktree",
+        "context-management"
+      ]
     }
   ]
 }
