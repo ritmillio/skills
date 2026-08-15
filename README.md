@@ -35,13 +35,19 @@ what it did. Because they are symlinks, `git pull` updates every tool at once.
 ./scripts/install.sh --uninstall         # take them back out
 ```
 
-Claude Code users can skip the clone entirely and install through the plugin
-marketplace, which also handles updates:
+Claude Code users can skip the clone and install through the plugin marketplace,
+which also handles updates:
 
 ```
 /plugin marketplace add ritmillio/skills
 /plugin install relay@ritmillio-tools
 ```
+
+**One catch, verified rather than assumed:** a marketplace-installed skill is
+namespaced, so it invokes as `/relay:relay`, not `/relay`. The installer above
+puts it in the skills directory instead, where the name stays clean. Pick the
+marketplace for versioned updates, the installer for the nicer command — or
+install both and use whichever name you remember.
 
 Per-tool paths and project-vs-user scope: [INSTALLATION.md](INSTALLATION.md).
 

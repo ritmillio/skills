@@ -23,19 +23,26 @@ whatever directory it scans.
 
 Two routes, and it is worth understanding which one you are on:
 
-**Plugin marketplace** — versioned, updates with `/plugin update`, and skills
-arrive with a clean `/name` invocation:
+**Plugin marketplace** — versioned, updates with `/plugin update`:
 
 ```
 /plugin marketplace add ritmillio/skills
 /plugin install relay@ritmillio-tools
 ```
 
-**Skills directory** — what `install.sh` does. Immediate, no version tracking,
-and edits to your clone take effect at once. Better while you are writing a
-skill.
+Skills installed this way are **namespaced**: the command is `/relay:relay`,
+not `/relay`. The documentation suggests a single-skill plugin with `SKILL.md`
+at its root escapes the namespace via the frontmatter `name`; on Claude Code
+2.1.x it does not. Verify with any new plugin rather than trusting the name you
+expected — ask a fresh session to list skills matching your skill's name.
 
-Do not use both for the same skill. If you develop skills in this repo, register
+**Skills directory** — what `install.sh` does. The command keeps its plain
+name (`/relay`), edits to your clone take effect at once, and there is no
+version tracking. Better while you are writing a skill, and better if you care
+about the command reading well.
+
+Installing both is harmless — the two names coexist rather than one overriding
+the other — but you pay the skill's token cost twice in every session. If you develop skills in this repo, register
 the marketplace from your local clone rather than from GitHub, so edits apply
 without a push:
 
