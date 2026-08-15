@@ -16,27 +16,25 @@ The installer's whole job is putting the folder where each one looks.
 
 ## Install
 
-Every agent on your machine, in one command:
+One command, every agent you have. This uses the community
+[`skills`](https://www.npmjs.com/package/skills) CLI, which resolves the repo,
+symlinks each skill into every agent directory it detects, and records a
+lockfile so `update` works later:
 
 ```bash
-git clone https://github.com/ritmillio/skills.git
-cd skills
-./scripts/install.sh
+npx skills@latest add ritmillio/skills
 ```
-
-It detects which agents you have, symlinks the skills into each, and tells you
-what it did. Because they are symlinks, `git pull` updates every tool at once.
 
 ```bash
-./scripts/install.sh --list              # what is installed where
-./scripts/install.sh --tool codex        # just one agent
-./scripts/install.sh --scope project     # into ./.<tool>/skills of the current repo
-./scripts/install.sh --copy relay        # standalone copy instead of a symlink
-./scripts/install.sh --uninstall         # take them back out
+npx skills@latest add ritmillio/skills --list          # see what is here first
+npx skills@latest add ritmillio/skills --skill relay   # just one
+npx skills@latest add ritmillio/skills --all           # every skill, every agent
+npx skills@latest list                                 # what you have installed
+npx skills@latest update                               # pull newer versions
 ```
 
-Claude Code users can skip the clone and install through the plugin marketplace,
-which also handles updates:
+Claude Code can also install through the plugin marketplace, which gives you
+versioned updates via `/plugin update`:
 
 ```
 /plugin marketplace add ritmillio/skills
@@ -44,12 +42,23 @@ which also handles updates:
 ```
 
 **One catch, verified rather than assumed:** a marketplace-installed skill is
-namespaced, so it invokes as `/relay:relay`, not `/relay`. The installer above
-puts it in the skills directory instead, where the name stays clean. Pick the
-marketplace for versioned updates, the installer for the nicer command — or
-install both and use whichever name you remember.
+namespaced, so it invokes as `/relay:relay`. Skills installed by the CLI keep
+the plain `/relay`. The documentation implies a single-skill plugin escapes the
+namespace; on Claude Code 2.1.x it does not.
 
-Per-tool paths and project-vs-user scope: [INSTALLATION.md](INSTALLATION.md).
+## Layout
+
+```
+skills/
+  engineering/     shipped, code-facing
+  productivity/    shipped, everything else
+  in-progress/     written but not trustworthy yet
+  deprecated/      retired, kept because the reasoning is still worth reading
+```
+
+A skill is a folder with a `SKILL.md`, optionally beside `references/`,
+`scripts/` and `assets/`. Nothing else is required, and the category is just a
+directory: installers find skills by scanning, not by path.
 
 ## What "works everywhere" actually means
 

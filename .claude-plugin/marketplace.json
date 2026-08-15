@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "relay",
-      "source": "./skills/relay",
+      "source": "./skills/engineering/relay",
       "description": "Unattended autonomous work for a stated duration, run as fresh processes handing off a committed ledger. No context rot.",
       "version": "0.1.0",
       "category": "workflow",

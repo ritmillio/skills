@@ -75,7 +75,8 @@ The scripts live in `scripts/` beside this SKILL.md, but the path depends on
 which agent loaded it. Resolve it once, then reuse `$SKILL_DIR`:
 
 ```bash
-for d in "${CLAUDE_PLUGIN_ROOT:-}" ~/.claude/skills/relay ~/.codex/skills/relay \
+for d in "${CLAUDE_PLUGIN_ROOT:-}" ~/.agents/skills/relay ./.agents/skills/relay \
+         ~/.claude/skills/relay ~/.codex/skills/relay \
          ~/.gemini/skills/relay ~/.cursor/skills/relay ./.claude/skills/relay; do
   [ -x "$d/scripts/relay.sh" ] && SKILL_DIR="$d" && break
 done

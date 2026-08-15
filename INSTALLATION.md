@@ -12,9 +12,11 @@ repository and travels with it if you commit the directory.
 | Gemini CLI | `~/.gemini/skills/` | `.gemini/skills/` |
 | Cursor | `~/.cursor/skills/` | `.cursor/skills/` |
 
-`./scripts/install.sh` writes to the user scope by default and only touches
-agents it can actually find. `--scope project` switches to the project form,
-relative to your current directory.
+`npx skills@latest add ritmillio/skills` writes to the project scope when run
+inside a project and the user scope otherwise; force it with `-g/--global`.
+It symlinks by default so an update reaches every agent at once, and `--copy`
+makes standalone copies instead. It also maintains `.agents/skills/` as the real
+location, with per-agent directories symlinked to it.
 
 Any other agent that reads the standard works too — copy the skill folder into
 whatever directory it scans.
@@ -36,7 +38,7 @@ at its root escapes the namespace via the frontmatter `name`; on Claude Code
 2.1.x it does not. Verify with any new plugin rather than trusting the name you
 expected — ask a fresh session to list skills matching your skill's name.
 
-**Skills directory** — what `install.sh` does. The command keeps its plain
+**Skills directory** — what the `skills` CLI does. The command keeps its plain
 name (`/relay`), edits to your clone take effect at once, and there is no
 version tracking. Better while you are writing a skill, and better if you care
 about the command reading well.
@@ -56,8 +58,8 @@ the GitHub one are mutually exclusive.
 ## Verifying
 
 ```bash
-./scripts/install.sh --list
-claude plugin validate ./skills/relay      # Claude Code manifests
+npx skills@latest list
+claude plugin validate ./skills/engineering/relay   # Claude Code manifests
 ```
 
 In a fresh agent session, ask it to list its available skills. A skill that
@@ -67,9 +69,6 @@ frontmatter `description`.
 ## Uninstalling
 
 ```bash
-./scripts/install.sh --uninstall           # all tools, all skills
-./scripts/install.sh --uninstall --tool cursor relay
+npx skills@latest remove relay
+npx skills@latest remove --all
 ```
-
-Only removes what this installer put there; a directory you wrote yourself is
-never clobbered.

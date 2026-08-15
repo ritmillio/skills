@@ -13,7 +13,7 @@ anything already covered by an existing skill.
 ## Writing one
 
 ```bash
-./scripts/new-skill.sh my-skill --description "What it does and when to use it"
+./scripts/new-skill.sh my-skill --category engineering --description "What it does and when to use it"
 ```
 
 The `description` is load-bearing. It is the only thing an agent sees when
@@ -48,10 +48,14 @@ Skills here must work in agents other than Claude Code:
 ## Before opening a PR
 
 ```bash
-claude plugin validate ./skills/<name>
+claude plugin validate ./skills/<category>/<name>
 claude plugin validate .
-./scripts/install.sh <name> && ./scripts/install.sh --list
+npx skills@latest add ritmillio/skills --list
 ```
+
+A skill that is written but not yet trustworthy goes in `skills/in-progress/`
+rather than shipping half-done. A skill you stop believing in moves to
+`skills/deprecated/` instead of being deleted: the reasoning stays readable.
 
 Then actually run the skill end to end. A skill that has never been executed is
 a hypothesis.
