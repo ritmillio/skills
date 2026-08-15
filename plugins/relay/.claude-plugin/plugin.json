@@ -1,0 +1,9 @@
+{
+  "name": "relay",
+  "description": "Unattended autonomous work for a stated duration, run as fresh processes handing off a committed ledger. No context rot.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/claude-relay",
+  "repository": "https://github.com/ritmillio/claude-relay",
+  "license": "MIT"
+}
