@@ -1,0 +1,9 @@
+{
+  "name": "draft-plan",
+  "description": "Turn an investigation or conversation into a written plan doc with diagnosis, explicit scope, workstreams with verifiable proofs, sequencing gates, and open questions. Use when the user wants a plan written down before building — then chain into shred-plan to stress-test it.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}

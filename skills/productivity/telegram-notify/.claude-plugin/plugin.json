@@ -1,0 +1,9 @@
+{
+  "name": "telegram-notify",
+  "description": "Set up Telegram bot notifications for agent events: task finished (Stop hook), commits, and relay run events (start/landed/halt/limit/end). Ships the telegram-notify.sh sender script and walks through BotFather setup, chat id, config, and Claude Code hook wiring. Use when the user wants a Telegram ping when the agent finishes or commits.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "shred-plan",
+  "description": "Tear a written plan apart to find gaps before implementing it. Use when the user has a plan (a docs/*-plan.md file or a plan in the conversation) and wants it stress-tested, red-teamed, or 'shredded'. Verifies every codebase claim with evidence, hunts unverified assumptions, hidden dependencies, missing failure modes, scope leaks, and unverifiable done-criteria, then reports findings ranked by severity.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}

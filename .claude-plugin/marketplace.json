@@ -7,6 +7,14 @@
   "description": "Cross-agent skills for long-running and unattended engineering work. SKILL.md format, works in Claude Code, Codex, Gemini CLI, Cursor and anything else that reads the open standard.",
   "plugins": [
     {
+      "name": "mattpocock-skills",
+      "source": {
+        "source": "github",
+        "repo": "mattpocock/skills"
+      },
+      "description": "Passthrough to Matt Pocock's skill pack (grill-me, tdd, to-spec, to-tickets, implement, code-review and friends), installed straight from his repo and kept in sync by /plugin update. Not our code — see https://github.com/mattpocock/skills."
+    },
+    {
       "name": "relay",
       "source": "./skills/engineering/relay",
       "description": "Unattended autonomous work for a stated duration, run as fresh processes handing off a committed ledger. No context rot.",
@@ -19,6 +27,24 @@
         "git-worktree",
         "context-management"
       ]
+    },
+    {
+      "name": "shred-plan",
+      "source": "./skills/productivity/shred-plan",
+      "description": "Tear a written plan apart to find gaps before implementing it. Use when the user has a plan (a docs/*-plan.md file or a plan in the conversation) and wants it stress-tested, red-teamed, or 'shredded'. Verifies every codebase claim with evidence, hunts unverified assumptions, hidden dependencies, missing failure modes, scope leaks, and unverifiable done-criteria, then reports findings ranked by severity.",
+      "version": "0.1.0"
+    },
+    {
+      "name": "draft-plan",
+      "source": "./skills/engineering/draft-plan",
+      "description": "Turn an investigation or conversation into a written plan doc with diagnosis, explicit scope, workstreams with verifiable proofs, sequencing gates, and open questions. Use when the user wants a plan written down before building — then chain into shred-plan to stress-test it.",
+      "version": "0.1.0"
+    },
+    {
+      "name": "telegram-notify",
+      "source": "./skills/productivity/telegram-notify",
+      "description": "Set up Telegram bot notifications for agent events: task finished (Stop hook), commits, and relay run events (start/landed/halt/limit/end). Ships the telegram-notify.sh sender script and walks through BotFather setup, chat id, config, and Claude Code hook wiring. Use when the user wants a Telegram ping when the agent finishes or commits.",
+      "version": "0.1.0"
     }
   ]
 }

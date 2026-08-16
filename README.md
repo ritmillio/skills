@@ -12,7 +12,10 @@ The installer's whole job is putting the folder where each one looks.
 
 | Skill | What it does |
 |---|---|
-| [`relay`](skills/relay) | Unattended autonomous work for a stated duration — 4 hours or 24 — on its own worktree and draft PR. Each iteration is a fresh process handing a committed ledger to the next, so nothing lives long enough to suffer context rot. |
+| [`relay`](skills/engineering/relay) | Unattended autonomous work for a stated duration — 4 hours or 24 — on its own worktree and draft PR. Each iteration is a fresh process handing a committed ledger to the next, so nothing lives long enough to suffer context rot. |
+| [`shred-plan`](skills/productivity/shred-plan) | The adversarial pass between "here's the plan" and "let's build it". Verifies every codebase claim in a plan with evidence, then hunts hidden dependencies, missing failure modes, scope leaks and unverifiable done-criteria — findings ranked by severity, no mercy. |
+| [`draft-plan`](skills/engineering/draft-plan) | Turn an investigation or conversation into a written plan doc: verified diagnosis, explicit in/out scope, workstreams with proofs of done, sequencing gates, open questions. The doc shape `shred-plan` was built to check — chain them. |
+| [`telegram-notify`](skills/productivity/telegram-notify) | Telegram bot pings when an agent finishes a task (Stop hook), lands a commit, or a relay run starts/lands/halts/ends. Ships the sender script and walks through BotFather setup and hook wiring. |
 
 ## Install
 
@@ -45,6 +48,25 @@ versioned updates via `/plugin update`:
 namespaced, so it invokes as `/relay:relay`. Skills installed by the CLI keep
 the plain `/relay`. The documentation implies a single-skill plugin escapes the
 namespace; on Claude Code 2.1.x it does not.
+
+## Companion packs
+
+The marketplace also passes through [Matt Pocock's skills](https://github.com/mattpocock/skills)
+(`grill-me`, `tdd`, `to-spec`, `to-tickets`, `implement`, `code-review`, …) as a
+remote-source entry — no vendored copy, nothing to drift:
+
+```
+/plugin install mattpocock-skills@ritmillio-tools   # pulled from his repo, synced by /plugin update
+```
+
+Skills CLI users get the same pack straight from the source instead:
+
+```bash
+npx skills@latest add mattpocock/skills
+```
+
+His pack is read-only either way. If you want to hack on one of his skills,
+copy it into `skills/` here, keep the credit, and make it your own.
 
 ## Layout
 
