@@ -138,6 +138,16 @@ hours this is the most likely way the run dies.
 Then hand over the four lines that matter: PR URL, ledger path,
 `tail -f .loop/relay.log`, and `touch .loop/STOP`. The terminal can be closed.
 
+**Notifications.** If `$RELAY_NOTIFY` (default `~/.claude/telegram-notify.sh`) is
+executable, the relay calls it as `RELAY_EVENT=<start|landed|halt|limit|end>
+<notifier> --relay "<body>"` on run start, on every iteration that lands
+commits, on a halt, on a usage-limit wait, and at the end. It is backgrounded
+and its exit code ignored, so a broken notifier cannot end a run; if the file is
+missing the relay is simply silent. The relay also exports
+`CLAUDE_RELAY_ACTIVE=1`, which a notifier should read to stay quiet on the
+per-iteration `claude -p`'s own Stop and commit hooks - the relay's message is
+strictly better, since it knows the iteration number and the commit count.
+
 ### 6. On their return
 
 `/relay report`: read `.loop/status`, the relay log, and the ledger's
@@ -150,6 +160,14 @@ a claim, a commit is evidence.
 The `STOP` file, the hour budget, the iteration cap, three consecutive
 iterations that landed no commit, or a branch drift. It pushes after every
 iteration that commits, so the PR stays current even if the run ends badly.
+
+An exhausted usage window is deliberately **not** a stop condition. A
+limit-reached failure is not a dry iteration — nothing was attempted — so the
+relay waits for the window to reset (probing every 15 minutes when the reset
+time is unknown, honoring `STOP` throughout, capped at 12h of cumulative
+waiting), extends the deadline by exactly the time it waited, and continues.
+For a run launched before this behavior existed, `scripts/limit-watchdog.sh
+--dir <worktree>` relaunches a limit-starved run with its remaining hours.
 
 ## If the relay cannot run
 

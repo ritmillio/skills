@@ -13,6 +13,10 @@
 #
 # Stop it at any time:  touch <worktree>/.loop/STOP
 # Watch it:             tail -f <worktree>/.loop/relay.log
+#
+# Usage limits: an exhausted usage window is NOT a dry iteration. The relay
+# detects the limit-reached error, waits for the window to reset (STOP still
+# honored), extends the deadline by the time it waited, and carries on.
 
 set -uo pipefail   # deliberately NOT -e: one failed iteration must not end the night
 
@@ -64,16 +68,32 @@ TIMEOUT_BIN="$(command -v timeout || command -v gtimeout || true)"
 log() { printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$RELAY_LOG"; }
 status() { printf '%s\n' "$*" > "$STATE/status"; }
 
+# Optional outbound notifier. Any executable taking `--relay <body>` with the
+# event kind in $RELAY_EVENT works; unset or missing means the relay is silent.
+# Backgrounded and never checked: a notification must not be able to end a run.
+NOTIFY="${RELAY_NOTIFY:-$HOME/.claude/telegram-notify.sh}"
+notify() {  # notify <start|landed|halt|limit|end> <body>
+  [[ -x "$NOTIFY" ]] || return 0
+  ( RELAY_EVENT="$1" "$NOTIFY" --relay "$2" >/dev/null 2>&1 & ) >/dev/null 2>&1
+  return 0
+}
+# Each iteration is a `claude -p` that would fire the user's own Stop/commit
+# hooks. Suppress those; the relay reports iterations itself, with commit counts.
+export CLAUDE_RELAY_ACTIVE=1
+
 STOPPING=0
 trap 'STOPPING=1; log "signal received, finishing after this iteration"' INT TERM
 
 START=$(date +%s)
 DEADLINE=$(( START + HOURS * 3600 ))
 iter=0; dry=0; committed=0; failed=0; cost_total=0
+limit_waited=0; LIMIT_WAIT_CAP=43200   # give up after 12h of cumulative limit waits
 
 log "=== relay start ==="
 log "dir=$DIR branch=$BRANCH ledger=$LEDGER model=$MODEL hours=$HOURS"
 log "stop with: touch $STATE/STOP"
+notify start "$(printf 'branch: %s\nledger: %s\nmodel: %s, budget: %sh\ndir: %s' \
+  "$BRANCH" "$LEDGER" "$MODEL" "$HOURS" "$DIR")"
 
 while true; do
   iter=$(( iter + 1 ))
@@ -91,6 +111,8 @@ while true; do
   if [[ "$cur" != "$BRANCH" ]]; then
     log "FATAL branch drift: expected '$BRANCH', found '$cur'. Refusing to continue."
     status "HALTED branch-drift $cur"
+    notify halt "$(printf 'Branch drift on %s.\nExpected %s, found %s. Run stopped.' \
+      "$(basename "$DIR")" "$BRANCH" "$cur")"
     break
   fi
 
@@ -133,6 +155,52 @@ $(cat "$brief_file")"
   result="$(jq -r '.result // ""' "$out" 2>/dev/null || echo '')"
   cost_total="$(awk -v a="$cost_total" -v b="$cost" 'BEGIN{printf "%.4f", a+b}')"
 
+  # --- usage-limit wait ------------------------------------------------------
+  # An exhausted usage window makes `claude -p` fail in seconds. That is not a
+  # dry iteration -- nothing was attempted -- so it must not burn the dry
+  # budget. Wait for the window to reset, give the paused time back to the
+  # deadline, and retry. STOP is honored during the wait.
+  limit_msg=""
+  if [[ "$head_before" == "$head_after" && ( "$is_error" == "true" || $rc -ne 0 ) ]]; then
+    limit_msg="$( { printf '%s\n' "$result"; head -c 2000 "$out" 2>/dev/null; \
+                    head -c 2000 "$err" 2>/dev/null; } \
+                  | grep -iE 'usage limit|rate limit|session limit|weekly limit|limit reached|hit your limit|reached your limit|resets [0-9]|try again (later|in)' | head -1 )"
+  fi
+  if [[ -n "$limit_msg" ]]; then
+    # Claude Code appends the reset time as "...|<epoch>" when it knows it.
+    reset_epoch="$( { printf '%s\n' "$result"; head -c 2000 "$out" 2>/dev/null; } \
+                    | grep -oE '\|[0-9]{9,10}' | head -1 | tr -d '|' )"
+    now=$(date +%s)
+    if [[ -n "$reset_epoch" ]] && (( reset_epoch > now )); then
+      wait_s=$(( reset_epoch - now + 120 ))
+    else
+      wait_s=900   # reset time unknown: probe again in 15 minutes
+    fi
+    (( wait_s > 21600 )) && wait_s=21600
+    if (( limit_waited + wait_s > LIMIT_WAIT_CAP )); then
+      log "cumulative usage-limit waits would exceed $(( LIMIT_WAIT_CAP / 3600 ))h, ending"
+      status "HALTED usage-limit-wait-cap"
+      notify halt "Usage-limit waiting cap reached on $BRANCH. Run stopped."
+      break
+    fi
+    log "iteration $iter blocked by usage limit: $(printf '%s' "$limit_msg" | tr '\n' ' ' | cut -c1-160)"
+    log "waiting ${wait_s}s for the window to reset (touch $STATE/STOP to end)"
+    notify limit "$(printf 'Iteration %s hit the usage limit on %s.\nWaiting %s min, then carrying on. Deadline extended.' \
+      "$iter" "$BRANCH" "$(( wait_s / 60 ))")"
+    status "WAITING usage-limit ${wait_s}s from $(date '+%H:%M:%S')"
+    waited=0
+    while (( waited < wait_s )); do
+      [[ -f "$STATE/STOP" ]] && break
+      (( STOPPING )) && break
+      sleep 60; waited=$(( waited + 60 ))
+    done
+    limit_waited=$(( limit_waited + waited ))
+    DEADLINE=$(( DEADLINE + waited ))   # the pause must not eat working hours
+    iter=$(( iter - 1 ))                # a blocked probe is not an iteration
+    continue
+  fi
+  # ---------------------------------------------------------------------------
+
   if (( rc == 124 )); then
     log "iteration $iter TIMED OUT after ${ITER_TIMEOUT}s"
   elif (( rc != 0 )); then
@@ -151,6 +219,9 @@ $(cat "$brief_file")"
     else
       log "    push failed (non-fatal, will retry next iteration)"
     fi
+    notify landed "$(printf 'iteration %s on %s landed %s commit(s)  ($%s so far)\n\n%s' \
+      "$iter" "$BRANCH" "$landed" "$cost_total" \
+      "$(git -C "$DIR" log --oneline --no-decorate "$head_before..$head_after")")"
   else
     dry=$(( dry + 1 ))
     if [[ "$is_error" == "true" || $rc -ne 0 ]]; then failed=$(( failed + 1 )); fi
@@ -169,3 +240,6 @@ elapsed=$(( ( $(date +%s) - START ) / 60 ))
 ran=$(( iter - 1 ))
 log "=== relay end: ${ran} iterations, ${committed} landed, ${failed} failed, ${elapsed} min, \$${cost_total} ==="
 status "DONE iters=$ran landed=$committed failed=$failed cost=$cost_total"
+notify end "$(printf '%s: %s iterations, %s landed, %s failed, %s min, $%s\n\n%s' \
+  "$BRANCH" "$ran" "$committed" "$failed" "$elapsed" "$cost_total" \
+  "$(git -C "$DIR" log --oneline --no-decorate -12 2>/dev/null)")"
