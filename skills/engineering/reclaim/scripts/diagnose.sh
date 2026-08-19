@@ -20,14 +20,17 @@ NCPU=$(sysctl -n hw.logicalcpu)
 
 # One CPU sample, reused by the verdict and by section 1.
 CPU_LINE=$(top -l 2 -n 0 -s 1 2>/dev/null | grep -E '^CPU usage' | tail -1)
+LOAD1=$(sysctl -n vm.loadavg | awk '{print $2}')
 
 hr "0. VERDICT"
 # Three ways a machine gets slow, and they need opposite responses. Decide here
 # before reading anything else.
-python3 - "$CPU_LINE" <<'PY'
+python3 - "$CPU_LINE" "$LOAD1" "$NCPU" <<'PY'
 import re, subprocess, sys, time
 
 cpu_line = sys.argv[1] if len(sys.argv) > 1 else ""
+load1 = float(sys.argv[2]) if len(sys.argv) > 2 else 0.0
+ncpu = int(sys.argv[3]) if len(sys.argv) > 3 else 1
 m = re.search(r"([\d.]+)%\s*user.*?([\d.]+)%\s*sys.*?([\d.]+)%\s*idle", cpu_line)
 user, sysp, idle = (float(m.group(1)), float(m.group(2)), float(m.group(3))) if m else (0.0, 0.0, 100.0)
 
@@ -78,6 +81,15 @@ compressor_pct = 100.0 * compressor_b / total
 tight = free_pct < 8
 mem_bound = tight or swap_rate > 0 or (sw_pct > 50 and (tight or compressor_pct > 25))
 stale_swap = sw_pct > 50 and not mem_bound
+
+# Load far above core count while the CPU sits idle means threads queued on
+# something that is not the CPU — almost always disk.
+io_bound = load1 > 1.5 * ncpu and idle > 45
+
+def count(pattern):
+    out = subprocess.run(["ps", "-Ao", "comm="], capture_output=True, text=True).stdout
+    return sum(1 for l in out.splitlines() if pattern in l)
+mdworkers = count("mdworker_shared")
 kernel_bound = sysp >= user and (user + sysp) > 25
 
 print()
@@ -93,6 +105,13 @@ elif stale_swap:
           f"{sw_pct:.0f}% full but {free_b/GB:.1f} GB is unused and nothing is paging.")
     print("    Those swap pages drain on reboot, not before. Not a live problem;")
     print("    do not go hunting for a memory hog you already dealt with.")
+elif io_bound:
+    print("  \033[1mI/O-BOUND\033[0m — "
+          f"load {load1:.1f} on {ncpu} cores while {idle:.0f}% idle.")
+    print("    Those threads are queued on disk, not on the CPU. Nothing in a")
+    print("    top-CPU list explains this; see the indexing section below.")
+    if mdworkers > 8:
+        print(f"    {mdworkers} mdworker_shared alive — Spotlight is the prime suspect.")
 elif kernel_bound:
     print("  \033[1mKERNEL-BOUND\033[0m — the kernel is the load, not your work.")
     print(f"    sys {sysp:.0f}% vs user {user:.0f}%. Process-spawn churn or paging.")
@@ -208,13 +227,63 @@ print("  Resident totals double-count shared pages, so read these as an upper")
 print("  bound and as a ranking, not as 'this much comes back if I quit it'.")
 PY
 
-hr "6. REAP CANDIDATES (dev watchers older than ${MIN_AGE_MIN}m)"
+hr "6. INDEXING STORM / FAT DEV SERVERS"
+python3 - <<'PY2'
+import collections, re, subprocess
+
+# --- Spotlight ----------------------------------------------------------------
+ps = subprocess.run(["ps", "-Ao", "pid=,pcpu=,rss=,comm="], capture_output=True, text=True).stdout
+mdw = [l for l in ps.splitlines() if "mdworker_shared" in l]
+mds = [l for l in ps.splitlines() if l.rstrip().endswith("/mds")]
+mds_cpu = float(mds[0].split()[1]) if mds else 0.0
+print(f"  mdworker_shared alive: {len(mdw)}    mds CPU: {mds_cpu:.0f}%")
+if len(mdw) > 8 or mds_cpu > 40:
+    print("  ^ INDEXING STORM. Spotlight re-scans anything that changes, and a dev")
+    print("    machine changes constantly. Find what it is reading:")
+    print("      lsof -c mdworker_shared | grep /Users")
+    # Name the offender if we can catch one mid-read.
+    hits = collections.Counter()
+    try:
+        out = subprocess.run(["lsof", "-c", "mdworker_shared"], capture_output=True,
+                             text=True, timeout=20).stdout
+        for m in re.finditer(r"(/Users/[^/]+/[^/]+/[^/\s]+)", out):
+            hits[m.group(1)] += 1
+    except Exception:
+        pass
+    for path, n in hits.most_common(3):
+        print(f"      {n:4d} open  {path}")
+
+# --- dev servers that have ballooned -----------------------------------------
+rows = subprocess.run(["ps", "-Ao", "pid=,rss=,etime=,args="], capture_output=True, text=True).stdout
+fat = []
+for line in rows.splitlines():
+    parts = line.split(None, 3)
+    if len(parts) < 4:
+        continue
+    pid, rss, etime, args = parts
+    if not rss.isdigit() or int(rss) < 3 * 1024 * 1024:   # under 3 GB
+        continue
+    if any(k in args for k in ("next-server", "next dev", "webpack", "vite", "tsc", "jest", "vitest")):
+        fat.append((int(rss), pid, etime, args[:60]))
+print()
+if fat:
+    for rss, pid, etime, args in sorted(fat, reverse=True):
+        print(f"  {rss/1024/1024:5.1f} GB  pid {pid:<7} up {etime:<12} {args}")
+    print()
+    print("  A Next dev server is expected to sit around 1-3 GB. Past ~6 GB it has")
+    print("  leaked, not grown: it will keep climbing and it does NOT shrink when")
+    print("  idle. Restarting it costs one command and is the whole fix.")
+else:
+    print("  no build process over 3 GB")
+PY2
+
+hr "7. REAP CANDIDATES (dev watchers older than ${MIN_AGE_MIN}m)"
 echo "  Build watchers hold RAM and a steady CPU trickle forever. Each one"
 echo "  restarts with a single pnpm command."
 echo
 "$(dirname "$0")/reap.sh" --min-age-min "$MIN_AGE_MIN" --dry-run
 
-hr "7. AGENT / TEST CONCURRENCY"
+hr "8. AGENT / TEST CONCURRENCY"
 printf "  claude sessions: %s\n" "$(pgrep -x claude 2>/dev/null | wc -l | tr -d ' ')"
 printf "  node processes:  %s\n" "$(pgrep -x node 2>/dev/null | wc -l | tr -d ' ')"
 printf "  vitest workers:  %s\n" "$(ps -Ao args= | grep -c 'node ([v]itest' || true)"

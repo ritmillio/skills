@@ -31,6 +31,7 @@ anything; if you skip to a kill list you will confidently fix the wrong thing.
 | Verdict | What it means | What to do |
 |---|---|---|
 | **MEMORY-BOUND** | Little unused RAM, a fat compressor, or live paging | Free resident pages — the memory chapter below |
+| **I/O-BOUND** | Load far above core count while the CPU is idle | Disk, not CPU — the indexing-storm section |
 | **KERNEL-BOUND** | System% ≥ User%: paging or process-registration churn | Reaping barely helps. Go to step 4 |
 | **USER-BOUND** | Your own compute really is the load | Cap concurrency, reap watchers (steps 2–3) |
 | **NOT CPU-BOUND** | Mostly idle and still slow | It is memory or I/O. Read section 2, not section 3 |
@@ -117,6 +118,85 @@ regex groups, so `pgrep -f 'Browser Helper (Renderer)'` matches nothing and
 reports a confident zero.
 
 Always quote the before/after `PhysMem` line. It is the only proof.
+
+## Two failure modes that look like nothing in a CPU list
+
+### The indexing storm
+
+**Symptom:** load average several times the core count while the CPU is mostly
+idle, and intermittent UI lag with no process to blame. Load 25 on 15 cores at
+59% idle means ~25 threads queued on **disk**, not on the CPU.
+
+**Cause:** Spotlight re-scans anything that changes, and a dev machine changes
+constantly. One real box had **3.39 million files in `node_modules` across 56
+worktrees**; dev servers rewrote them continuously, so the index never
+converged. 32 `mdworker_shared` were alive at once, respawning every 1–4
+seconds — which is also where a `launchservicesd` spike comes from, since every
+one of those spawns is a process registration.
+
+Confirm by catching a worker mid-read:
+
+```bash
+lsof -c mdworker_shared | grep /Users
+```
+
+Seeing `.../node_modules/effect/src/Context.ts` scroll past is the whole
+diagnosis.
+
+**What does not work, in the order you will try it:**
+
+- `.metadata_never_index` in each `node_modules` — officially only honoured at
+  a **volume root**. 686 markers changed nothing; workers kept indexing the
+  exact directories that had been marked.
+- `sudo killall mds` — `mds` is SIP-protected. It survives, same PID, and the
+  only clue is that `etime` never resets. Check the PID before believing it.
+- `mdutil` — **volume-level only**. There is no per-directory CLI exclusion.
+
+**What works:** System Settings → Spotlight → Search Privacy → add the parent
+directory. Doing it at `~/Developer` rather than per-worktree is what makes it
+cover worktrees that do not exist yet. The cost is Spotlight file search over
+your code, which is no cost if you already search with ripgrep and your editor.
+
+### The dev server that ate the machine
+
+A Next dev server is expected to sit at 1–3 GB. Past ~6 GB it has leaked, and
+it **does not shrink when idle**. Observed on one machine: 7 GB at 55 seconds,
+**13.4 GB at 14 minutes**, at 0% CPU the whole time.
+
+This is invisible to every CPU-ordered view — the process is idle. Only a
+top-RSS scan finds it, which is why section 6 flags any build process over
+3 GB by name and age.
+
+Before killing one, walk the parent chain. A dev server respawning seconds
+after you kill it is usually **another agent session** restarting it, not a
+supervisor:
+
+```bash
+ps -o ppid=,args= -p <pid>   # repeat up the chain to launchd
+```
+
+Landing on `claude --dangerously-skip-permissions` means another session owns
+that server, and killing it again will not stick.
+
+## Prevention
+
+Everything above is a cure. These are the four things that stop the calls
+coming back, in payoff order:
+
+1. **Exclude the code root from Spotlight** — one action, covers every future
+   worktree, removes millions of files from the index permanently.
+2. **One dev server at a time, and restart it when it crosses ~6 GB.** Several
+   worktrees each running `next dev` is several times 3–13 GB. `diagnose.sh`
+   section 6 names them.
+3. **Prune worktrees.** 56 checkouts is 3.4M dependency files, and every one of
+   them is disk, index churn, and a place to run a forgotten dev server.
+4. **Reboot on a schedule.** `WindowServer` leaks monotonically with uptime and
+   nothing else reclaims it or the swap file. At 64 days it was 1.3 GB.
+
+**The tell for a leaked `WindowServer`: the volume HUD lags.** Changing volume
+costs essentially no CPU and no disk — it is pure compositing. When *that*
+stutters, stop looking for a busy process; the compositor itself is sick, and
+only a restart fixes it.
 
 ## Procedure
 
