@@ -24,6 +24,7 @@ DIR=""; LEDGER=""; BRANCH=""
 HOURS=8; MODEL="opus"; FALLBACK="sonnet"
 MAX_ITERS=200; COMPACT_EVERY=8; DRY_LIMIT=3
 ITER_TIMEOUT=2700          # 45 min per iteration
+MAX_PARALLEL="${RELAY_MAX_PARALLEL:-2}"   # relay iterations allowed to run at once, machine-wide
 BUDGET=""                  # optional --max-budget-usd per iteration
 SETTLE=5                   # seconds between iterations
 
@@ -39,6 +40,7 @@ while [[ $# -gt 0 ]]; do
     --compact-every) COMPACT_EVERY="$2"; shift 2 ;;
     --dry-limit)     DRY_LIMIT="$2"; shift 2 ;;
     --iter-timeout)  ITER_TIMEOUT="$2"; shift 2 ;;
+    --max-parallel)  MAX_PARALLEL="$2"; shift 2 ;;
     --budget)        BUDGET="$2"; shift 2 ;;
     *) echo "unknown flag: $1" >&2; exit 2 ;;
   esac
@@ -81,6 +83,70 @@ notify() {  # notify <start|landed|halt|limit|end> <body>
 # hooks. Suppress those; the relay reports iterations itself, with commit counts.
 export CLAUDE_RELAY_ACTIVE=1
 
+# --- machine-wide iteration semaphore ---------------------------------------
+# Several relays on one laptop each run a full gate suite -- vitest, tsc at an
+# 8GB heap, webpack add-in builds. Vitest alone forks one worker per core, so
+# two relays entering their gates in the same minute ask for several times the
+# cores the machine has; the box thrashes at load 60+ and every iteration gets
+# slower, including the interactive session the human is using.
+#
+# Slots are directories: mkdir is atomic, so winning one is race-free. Each
+# holds the PID of its owner, and a slot whose owner died is reclaimed. A relay
+# that cannot get a slot waits, but only for a bounded time -- a lock must
+# never be able to end the night, so after ITER_TIMEOUT it proceeds anyway.
+SLOTS="$HOME/.claude/relay-slots"
+MY_SLOT=""
+mkdir -p "$SLOTS"
+
+slot_release() {
+  [[ -n "$MY_SLOT" && -d "$MY_SLOT" ]] && rm -rf "$MY_SLOT"
+  MY_SLOT=""
+}
+
+slot_try() {   # one pass over the slots; sets MY_SLOT on success
+  local i d owner
+  for (( i = 1; i <= MAX_PARALLEL; i++ )); do
+    d="$SLOTS/slot-$i"
+    if mkdir "$d" 2>/dev/null; then
+      echo $$ > "$d/pid"; MY_SLOT="$d"; return 0
+    fi
+    # Occupied: reclaim it if the owner is gone (crash, kill -9, reboot).
+    owner="$(cat "$d/pid" 2>/dev/null || echo 0)"
+    if [[ ! "$owner" =~ ^[0-9]+$ ]] || ! kill -0 "$owner" 2>/dev/null; then
+      rm -rf "$d"
+      if mkdir "$d" 2>/dev/null; then
+        echo $$ > "$d/pid"; MY_SLOT="$d"; return 0
+      fi
+    fi
+  done
+  return 1
+}
+
+slot_acquire() {
+  (( MAX_PARALLEL <= 0 )) && return 0
+  local waited=0 announced=0
+  while ! slot_try; do
+    [[ -f "$STATE/STOP" ]] && return 1
+    (( STOPPING )) && return 1
+    if (( announced == 0 )); then
+      log "waiting for a CPU slot ($MAX_PARALLEL in use machine-wide)"
+      status "WAITING cpu-slot since=$(date '+%H:%M:%S')"
+      announced=1
+    fi
+    if (( waited >= ITER_TIMEOUT )); then
+      log "no CPU slot after ${ITER_TIMEOUT}s, proceeding anyway"
+      return 0
+    fi
+    # Jitter, so relays that fell into lockstep do not keep colliding.
+    local nap=$(( 20 + RANDOM % 25 ))
+    sleep "$nap"; waited=$(( waited + nap ))
+  done
+  return 0
+}
+
+# Never leave a slot behind, whatever ends this relay.
+trap 'slot_release' EXIT
+
 STOPPING=0
 trap 'STOPPING=1; log "signal received, finishing after this iteration"' INT TERM
 
@@ -91,6 +157,7 @@ limit_waited=0; LIMIT_WAIT_CAP=43200   # give up after 12h of cumulative limit w
 
 log "=== relay start ==="
 log "dir=$DIR branch=$BRANCH ledger=$LEDGER model=$MODEL hours=$HOURS"
+log "max-parallel=$MAX_PARALLEL (machine-wide relay iteration slots)"
 log "stop with: touch $STATE/STOP"
 notify start "$(printf 'branch: %s\nledger: %s\nmodel: %s, budget: %sh\ndir: %s' \
   "$BRANCH" "$LEDGER" "$MODEL" "$HOURS" "$DIR")"
@@ -131,6 +198,8 @@ while true; do
 
 $(cat "$brief_file")"
 
+  if ! slot_acquire; then log "stopping while waiting for a CPU slot"; break; fi
+
   log "--- iteration $iter ($kind) start ---"
   status "RUNNING iter=$iter kind=$kind since=$(date '+%H:%M:%S')"
 
@@ -148,6 +217,7 @@ $(cat "$brief_file")"
     ( cd "$DIR" && "${cmd[@]}" ) >"$out" 2>"$err"
   fi
   rc=$?
+  slot_release
 
   head_after="$(git -C "$DIR" rev-parse HEAD)"
   is_error="$(jq -r '.is_error // "true"' "$out" 2>/dev/null || echo true)"

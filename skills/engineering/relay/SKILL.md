@@ -127,8 +127,24 @@ so there is a URL even if the first iteration fails.
 ```bash
 "$SKILL_DIR/scripts/launch.sh" \
   --dir <worktree> --ledger docs/<slug>.md --branch feat/<slug> \
-  --hours <duration> --model opus --compact-every 8
+  --hours <duration> --model opus --compact-every 8 --max-parallel 2
 ```
+
+**Sharing the machine.** Every relay iteration runs the host repo's gate suite,
+and test runners fork one worker per core by default -- two relays entering
+their gates in the same minute ask for several times the cores the laptop has,
+and the whole box thrashes, the human's interactive session included. The relay
+holds one of `--max-parallel` machine-wide slots (default 2, or
+`$RELAY_MAX_PARALLEL`) for the duration of each iteration, so relays queue
+instead of colliding. Slots are `~/.claude/relay-slots/slot-N` directories
+keyed by owner PID and reclaimed when an owner dies. The wait is bounded by
+`--iter-timeout`: a lock must never be able to end the night, so a relay that
+still cannot get a slot proceeds anyway and says so in the log. Set
+`--max-parallel 1` for strict serialisation, `0` to disable the semaphore.
+
+Cap the runners too. `VITEST_MAX_THREADS` / `VITEST_MAX_FORKS` (and
+`TURBO_CONCURRENCY`) in `~/.claude/settings.json`'s `env` block reach every
+iteration, because each one is a Claude Code session reading that file.
 
 `launch.sh` picks the platform's sleep inhibitor and prints exactly what
 protection the run has. **Read that line back to the user.** On macOS a closed
