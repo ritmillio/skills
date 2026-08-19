@@ -180,8 +180,31 @@ that server, and killing it again will not stick.
 
 ## Prevention
 
-Everything above is a cure. These are the four things that stop the calls
-coming back, in payoff order:
+Everything above is a cure. `scripts/guard.sh` is the prophylactic: it checks
+the four recurring conditions and, with `--apply`, fixes the one that is safe
+to fix unattended.
+
+```bash
+scripts/guard.sh                          # check and report
+scripts/guard.sh --apply                  # reclaim idle renderers when tight
+scripts/install-guard.sh --apply          # every 10 min via launchd
+scripts/install-guard.sh --uninstall
+```
+
+It reclaims idle browser renderers **only when unused RAM is already below the
+threshold** — a tab reload is a real cost and is not worth paying on a healthy
+machine. Dev servers over the cap are reported by default and killed only with
+an explicit `--dev-kill`, because a dev server usually belongs to someone. Exit
+status is non-zero when it found something, so a `/loop` or cron wrapper can
+branch on it, and every run appends to `~/.claude/reclaim-guard.log`.
+
+**What it cannot prevent, and why:** the Spotlight fix needs root, so `guard.sh`
+only ever reports the storm and prints the command; and nothing but a restart
+reclaims `WindowServer`, so it nags about uptime instead. Be honest with the
+user about that split rather than implying the timer has it covered.
+
+Alongside the timer, the four things that stop the calls coming back, in payoff
+order:
 
 1. **Exclude the code root from Spotlight** — one action, covers every future
    worktree, removes millions of files from the index permanently.
@@ -277,7 +300,13 @@ heap — it OOMs below 8 GB.
 A live test run belonging to *another agent's session* is work in progress, not
 garbage. Let it finish.
 
-### 4. When only a restart will do
+### 4. Leave the guard running
+
+Once the machine is healthy, install the timer so the next slide is caught at
+the 6 GB mark instead of at the fan. Report-only is the honest default; add
+`--apply` when the user has agreed that idle browser tabs are expendable.
+
+### 5. When only a restart will do
 
 If System% dominates, swap is near full, and uptime is measured in weeks, no
 amount of process-killing fixes it. Say so plainly rather than reaping twice
