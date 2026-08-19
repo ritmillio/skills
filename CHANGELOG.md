@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `reclaim`: diagnose and fix a dev machine pinned at high CPU/RAM/load.
+  Leads with the System-vs-User split, because a top-of-list process is
+  usually a symptom — `launchservicesd` at 300% is spawn churn, not work.
+  Ships a read-only `diagnose.sh` and a protect-listed `reap.sh` (dry-run by
+  default) for stale `next dev` / `trigger dev` / orphan-esbuild watchers,
+  plus the vitest-forks-one-worker-per-core cap and a safe relay wind-down.
 - Marketplace passthrough for `mattpocock/skills`: a remote-source entry, so
   `/plugin install mattpocock-skills@ritmillio-tools` pulls from his repo and
   `/plugin update` keeps it in sync. No vendored copy.

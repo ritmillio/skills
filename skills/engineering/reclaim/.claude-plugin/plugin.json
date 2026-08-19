@@ -1,0 +1,9 @@
+{
+  "name": "reclaim",
+  "description": "Give a pinned dev machine back — read the System-vs-User CPU split, reap stale build watchers, cap the test runner, and know when only a reboot will do.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}

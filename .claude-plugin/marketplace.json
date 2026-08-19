@@ -45,6 +45,21 @@
       "source": "./skills/productivity/telegram-notify",
       "description": "Telegram bot notifications for agent events: turn finished, turn failed, commits, pushes, blocked-on-permission, and relay run events. Ships the sender script and walks through BotFather setup, chat id, config, hook wiring and a --doctor check.",
       "version": "0.2.0"
+    },
+    {
+      "name": "reclaim",
+      "source": "./skills/engineering/reclaim",
+      "description": "Diagnose and fix a dev machine pinned at high CPU, high RAM or high load average — read the System-vs-User split first, reap stale build watchers, cap test-runner concurrency, and tell the user when only a reboot will do. Use when the user says the CPU/RAM/fan/load is out of control, shows a system-monitor screenshot, asks to free up memory, or asks why the machine is slow while agents are running.",
+      "version": "0.1.0",
+      "category": "workflow",
+      "tags": [
+        "performance",
+        "cpu",
+        "memory",
+        "macos",
+        "dev-environment",
+        "triage"
+      ]
     }
   ]
 }
