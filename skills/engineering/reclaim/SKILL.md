@@ -216,10 +216,30 @@ order:
 4. **Reboot on a schedule.** `WindowServer` leaks monotonically with uptime and
    nothing else reclaims it or the swap file. At 64 days it was 1.3 GB.
 
-**The tell for a leaked `WindowServer`: the volume HUD lags.** Changing volume
-costs essentially no CPU and no disk — it is pure compositing. When *that*
-stutters, stop looking for a busy process; the compositor itself is sick, and
-only a restart fixes it.
+**The tell for uptime rot: the volume HUD lags.** Changing volume costs
+essentially no CPU and no disk. When *that* stutters, stop looking for a busy
+process — a system daemon is sick, and none of them can be killed or
+reconfigured.
+
+Check all three together, because they degrade together and each one alone
+looks survivable:
+
+```bash
+top -l 2 -n 40 -o cpu -stats pid,command,cpu | grep -E 'WindowServer|coreaudiod|ControlCenter'
+```
+
+Measured on an idle machine at 64 days uptime: `WindowServer` 86-122%,
+`coreaudiod` 48-88%, `ControlCenter` 10-12% — about two cores burned doing
+nothing anyone asked for. Normal is under 10%, under 5% and ~0%.
+
+`coreaudiod` is the one that gets missed. It is the audio daemon, it processes
+every volume change, and at 88% it makes the HUD stutter directly rather than
+through the compositor. Note `ps` %CPU is a lifetime average, so on a 64-day
+uptime a pathological daemon reads as a plausible-looking number — take
+instantaneous samples before dismissing it.
+
+All three are SIP-protected. Reboot is the entire fix, and saying so early
+saves an hour of looking for a process that does not exist.
 
 ## Procedure
 
