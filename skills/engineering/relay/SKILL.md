@@ -1,6 +1,6 @@
 ---
 name: relay
-description: Run unattended autonomous work for a stated duration (4h, 12h, 24h) on a dedicated worktree, branch and draft PR, without context rot. Each iteration is a fresh process handing a committed ledger to the next. Use when the user says "work on X for the next N hours", "keep iterating while I'm away", "leave it running", "work on this all night", or asks to check on, stop, or report on a running relay.
+description: Run unattended autonomous work on a dedicated worktree, branch and draft PR, without context rot — for a stated duration (4h, 12h, 24h) or until a set of verifiable criteria all pass. Each iteration is a fresh process handing a committed ledger to the next. Use when the user says "work on X for the next N hours", "keep going until X, Y and Z are done", "keep iterating while I'm away", "leave it running", "work on this all night", or asks to watch, check on, stop, or report on a running relay.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion
 ---
 
@@ -18,13 +18,23 @@ hours and at twenty-four.
 
 ## Invocation
 
-`/relay <duration> <mission>` — the duration is the hard wall-clock budget and
-goes straight to `--hours`. `/relay 4h`, `/relay 24h`, `/relay overnight` (treat
-as 8h unless told otherwise). Also `/relay status` and `/relay stop` for a run
-already going, and `/relay report` when the user comes back.
+`/relay <duration> <mission>` — the duration is the wall-clock budget and goes
+straight to `--hours`. `/relay 4h`, `/relay 24h`, `/relay overnight` (treat as
+8h unless told otherwise).
 
-If no duration is given, ask for one. Everything is sized from it: how much
-backlog to seed, how deep each item can be, whether the setup is worth it.
+`/relay until <criteria>` — the run ends when every criterion is verified, and
+the duration becomes the cap that stops a runaway rather than the goal. This is
+the right form whenever the user knows what done looks like but not how long it
+takes, which is most of the time. Ask for a cap if none is given and default to
+12h: an unattended loop with no deadline is a runaway waiting to happen. Every
+criterion has to become an executable check — step 4b below, and
+`references/done-checks.md` for how to write one that cannot be gamed.
+
+Also `/relay watch` (live dashboard), `/relay status` (one snapshot),
+`/relay stop`, and `/relay report` when the user comes back.
+
+If neither a duration nor criteria are given, ask. Everything is sized from it:
+how much backlog to seed, how deep each item can be, whether the setup is worth it.
 
 ## When to use this
 
@@ -49,9 +59,11 @@ backlog to seed, how deep each item can be, whether the setup is worth it.
 | **Brief** | `<worktree>/.loop/brief.md` | The prompt each fresh process gets; bounded by construction |
 | **Relay** | `$SKILL_DIR/scripts/relay.sh`, detached | Starts processes, asserts invariants, records outcomes. Talks to no model |
 | **Worktree** | sibling of the repo | Isolation. A shared checkout gets its branch flipped by another session |
+| **Contract** | `<worktree>/.loop/done.d/*`, executable | What "done" means, as exit codes. Optional; without it the run ends on the clock |
 
 Read `$SKILL_DIR/references/brief.md`, `compaction-brief.md`,
-`ledger-template.md` and `gates.md` before writing any of them.
+`ledger-template.md` and `gates.md` before writing any of them, and
+`done-checks.md` before writing a completion contract.
 
 ## First: the host repo's gates
 
@@ -89,17 +101,19 @@ If none match, the skill is installed somewhere non-standard: find it with
 
 Infer what you can and propose it back in one block. Ask only what changes the
 run, at most one `AskUserQuestion` round: mission in a sentence, scope boundary,
-duration, anything explicitly out of scope. Do not interview someone who is
-trying to go to bed.
+how it ends (a duration, or the criteria that end it and a cap), anything
+explicitly out of scope. Do not interview someone who is trying to go to bed.
 
 ### 2. Seed a real backlog
 
 **This decides whether the run is worth anything.** A relay launched with a
 vague backlog wanders. Fan out `Explore` agents over the mission area and come
 back with concrete, verifiable items ordered by value — roughly two per hour of
-the stated duration, floor of 6. Each names the surface it touches and how you
-would know it worked. Iterations that run dry end the run early, so a long run
-wants a deep backlog. If you cannot find 6 real items, say so.
+the cap, floor of 6. Each names the surface it touches and how you would know it
+worked. Under a completion contract, every criterion also needs at least one
+backlog item that would turn it green, or the run cannot finish. Iterations that
+run dry end the run early, so a long run wants a deep backlog. If you cannot
+find 6 real items, say so.
 
 ### 3. Set up
 
@@ -122,13 +136,40 @@ created and locally excluded from git.
 Commit the ledger, push the branch, open the **draft** PR now, before launching,
 so there is a URL even if the first iteration fails.
 
+### 4b. Write the completion contract (only if the run ends on "done")
+
+Each criterion becomes one executable file in `<worktree>/.loop/done.d/` with a
+`# desc:` line naming it; its exit code is the verdict. Read
+`references/done-checks.md` first — a check pointed at the wrong thing ends the
+run early and reports success, which is worse than no contract at all. Mirror
+them in prose under the ledger's `## Done when`, and set `{{ENDS_WHEN}}` in both
+the ledger and the brief.
+
+Then run the contract before launching and read the result back to the user:
+
+```bash
+"$SKILL_DIR/scripts/check-done.sh" --dir <worktree>
+```
+
+**Every criterion should be red.** One that is already green is either already
+done or measuring nothing — say so rather than shipping it.
+
 ### 5. Launch detached
 
 ```bash
 "$SKILL_DIR/scripts/launch.sh" \
   --dir <worktree> --ledger docs/<slug>.md --branch feat/<slug> \
-  --hours <duration> --model opus --compact-every 8 --max-parallel 2
+  --hours <cap> --model opus --compact-every 8 --max-parallel 2 --watch
 ```
+
+`--watch` attaches the dashboard once the relay is up; Ctrl-C detaches it and
+the run continues, because the relay never had a terminal to lose. Drop it for a
+truly fire-and-forget launch.
+
+With a contract in `.loop/done.d/`, the relay runs it around every iteration and
+stops the moment all of it passes. `--check-every N` runs it every N iterations
+instead, for a suite too slow to repeat hourly; `--check-timeout` caps a single
+check (900s default).
 
 **Sharing the machine.** Every relay iteration runs the host repo's gate suite,
 and test runners fork one worker per core by default -- two relays entering
@@ -152,7 +193,22 @@ lid still sleeps; on Windows there is no guard at all. For anything past a few
 hours this is the most likely way the run dies.
 
 Then hand over the four lines that matter: PR URL, ledger path,
-`tail -f .loop/relay.log`, and `touch .loop/STOP`. The terminal can be closed.
+`.loop/watch.sh`, and `touch .loop/STOP`. The terminal can be closed.
+
+### 5b. Watching a run
+
+Each iteration streams its events as they happen, so a run in progress is
+legible rather than silent. Three views, in decreasing altitude:
+
+| Command | Shows |
+|---|---|
+| `<worktree>/.loop/watch.sh` | Live dashboard: contract state, budget, commits, the stream. Redraws until Ctrl-C |
+| `.loop/watch.sh --once` | One plain snapshot, no redraw. This is what `/relay status` prints, and what to use from inside a session |
+| `tail -f .loop/live.log` | Every tool call and every line the model narrates, timestamped |
+
+`.loop/relay.log` remains the high-altitude record: one block per iteration,
+what it landed, what the contract said. That is the file to read in the morning,
+not the stream.
 
 **Notifications.** If `$RELAY_NOTIFY` (default `~/.claude/telegram-notify.sh`) is
 executable, the relay calls it as `RELAY_EVENT=<start|landed|halt|limit|end>
@@ -166,15 +222,19 @@ strictly better, since it knows the iteration number and the commit count.
 
 ### 6. On their return
 
-`/relay report`: read `.loop/status`, the relay log, and the ledger's
-`## For the founder` and `## Health`. Lead with what landed and what needs a
+`/relay report`: run `.loop/watch.sh --once`, then read the relay log and the
+ledger's `## For the founder` and `## Health`. Lead with why the run ended: a
+contract met is a finished mission, a budget exhausted is a progress report. Lead with what landed and what needs a
 decision. Verify against `git log` before repeating a claim — a ledger entry is
 a claim, a commit is evidence.
 
 ## Stop conditions
 
-The `STOP` file, the hour budget, the iteration cap, three consecutive
-iterations that landed no commit, or a branch drift. It pushes after every
+The completion contract passing in full (the good ending), the `STOP` file, the
+hour cap, the iteration cap, three consecutive iterations that landed no commit,
+or a branch drift. The relay logs which one ended the run — `relay end
+(contract-met)` versus `relay end (budget)` — and a gated run that ended any
+other way lists each criterion it never met under `still open:`. It pushes after every
 iteration that commits, so the PR stays current even if the run ends badly.
 
 An exhausted usage window is deliberately **not** a stop condition. A

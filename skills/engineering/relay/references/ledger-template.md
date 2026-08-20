@@ -13,6 +13,8 @@ Time budget {{HOURS}}h. Driver: the `relay` plugin.
 **In scope.** {{SCOPE}}
 **Out of scope.** {{OUT_OF_SCOPE}}
 
+**Ends when.** {{ENDS_WHEN}}
+
 **How to read this.** `## For the founder` is your inbox, read it first.
 `## Health` is the current gate status. `## Landed` is what shipped.
 `## Backlog` is what the loop would do next if it kept running.
@@ -31,6 +33,15 @@ _(nothing yet)_
 <!-- Filled by each compaction iteration: gate results, verbatim, with a sha. -->
 
 _(no compaction iteration has run yet)_
+
+## Done when
+
+<!-- The completion contract in prose, one line per criterion, each naming the
+     check in .loop/done.d/ that decides it. If a line here has no check, the
+     relay cannot see it and will not wait for it. Delete this section for a
+     run that ends on the clock. -->
+
+- [ ] {{FIRST_CRITERION}}
 
 ## Standing rules
 
