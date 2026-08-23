@@ -66,6 +66,12 @@
       "source": "./skills/security/mac-compromise-check",
       "description": "Run a read-only compromise triage on a macOS machine: accounts, remote access, listening ports, launchd/cron persistence, browser extensions, MDM/config profiles, and system hardening (FileVault/SIP/Gatekeeper). Trace a specific email or account across the machine. Use when the user says 'is my Mac hacked', 'check if my Mac is compromised', 'did someone access my machine', shows a suspicious sign-in, or wants a security audit of their laptop.",
       "version": "0.1.0"
+    },
+    {
+      "name": "collect-bills",
+      "source": "./skills/bookkeeping/collect-bills",
+      "description": "Sweep mailboxes for vendor invoices billed to the company, drop anything without the company tax number, diff against what is already archived, and download only the delta. Use when the user says collect the bills, gather receipts, get the invoices, or do the bookkeeping.",
+      "version": "0.1.0"
     }
   ]
 }
