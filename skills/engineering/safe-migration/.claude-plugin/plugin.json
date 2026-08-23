@@ -1,0 +1,9 @@
+{
+  "name": "safe-migration",
+  "description": "Run the safe Drizzle migration ritual for a repo with a fragile migration directory: pick the next free prefix, generate, grep the SQL for destructive operations, enforce IF EXISTS, run the migration check, and confirm schema lands with its migration in one commit. Use when the user changes a Drizzle schema file, says 'generate a migration', 'add a column/table', 'db:generate', or is about to ship a schema change.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}

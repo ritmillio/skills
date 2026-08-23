@@ -1,0 +1,15 @@
+# morning-brief — news sources. Format:  Label | https://feed-url
+# RSS/Atom URLs are fetched and parsed directly. A plain web-page URL is marked
+# NEEDS-WEBFETCH so the agent fetches and extracts headlines itself.
+# Copy to ~/.config/morning-brief/sources.txt and edit for YOUR domain.
+
+# --- AI / model releases (relevant to an AI product builder) ---
+Hacker News (front) | https://hnrss.org/frontpage
+Simon Willison      | https://simonwillison.net/atom/everything/
+
+# --- your market / competitors / legal-tech (examples — replace) ---
+# Wolters Kluwer news | https://www.wolterskluwer.com/en/rss
+# A competitor blog    | https://example.com/blog/rss.xml
+
+# --- non-feed pages: handled via WebFetch, not RSS ---
+# Some news page | https://news.example.com/latest

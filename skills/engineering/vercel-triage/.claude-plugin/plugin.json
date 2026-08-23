@@ -1,0 +1,9 @@
+{
+  "name": "vercel-triage",
+  "description": "Pull, dedupe, and triage Vercel production logs down to genuine failures, working around the CLI's traps (events duplicated many times, short --until windows, ~24h retention). Use when the user says 'check the vercel logs', 'is prod erroring', 'triage production', 'why are users seeing errors', or wants a production health read.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}

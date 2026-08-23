@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- `safe-migration`: the boring, safe Drizzle migration ritual for a repo whose
+  migration directory has already been broken once. Reads the repo's own rules,
+  derives the next prefix from disk (not memory), greps every generated file for
+  silent `DROP`/`TRUNCATE`, enforces `IF EXISTS`, runs the check, and refuses to
+  finish unless schema and migration land in the same commit. `references/
+  hazards.md` is the incident log it exists to prevent — including the dropped-
+  column-left-in-schema outage that ran for weeks. Never pushes to a shared DB.
+- `vercel-triage`: turn a useless raw `vercel logs` dump into a triage. `triage.sh`
+  resolves the prod deployment, pulls a bounded window, **dedupes the CLI's
+  repeated events** (never report a raw line count as an error count), and groups
+  what's left by status+path with counts, 5xx first. `references/reading-logs.md`
+  maps each status to act-vs-ignore and names what this surface can't answer
+  (>24h, build logs). Read-only.
+- `morning-brief`: start the day in one screen. An INTERNAL section (commits,
+  branch, open PRs, live-relay flag across the repos in `repos.txt`) and an
+  EXTERNAL section (RSS/Atom news from `sources.txt`, filtered to the window,
+  newest first; non-feed pages handed to WebFetch). Config lives in
+  `~/.config/morning-brief`, so it's your feed, not a generic one; optional
+  Telegram delivery via the `telegram-notify` skill. Read-only.
+
 - `mac-compromise-check`: read-only "is my Mac hacked?" triage. A `scan.sh`
   that walks the places persistence and remote access actually live — accounts,
   remote logins, `authorized_keys`, listening ports, launchd/cron, browser
