@@ -1,0 +1,9 @@
+{
+  "name": "collect-bills",
+  "description": "Sweep mailboxes for vendor invoices billed to the company, drop anything without the company tax number, diff against what is already archived, and download only the delta. Use when the user says collect the bills, gather receipts, get the invoices, or do the bookkeeping.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}
