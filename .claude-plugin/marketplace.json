@@ -72,6 +72,24 @@
       "source": "./skills/bookkeeping/collect-bills",
       "description": "Sweep mailboxes for vendor invoices billed to the company, drop anything without the company tax number, diff against what is already archived, and download only the delta. Use when the user says collect the bills, gather receipts, get the invoices, or do the bookkeeping.",
       "version": "0.1.0"
+    },
+    {
+      "name": "safe-migration",
+      "source": "./skills/engineering/safe-migration",
+      "description": "Run the safe Drizzle migration ritual for a repo with a fragile migration directory: pick the next free prefix, generate, grep the SQL for destructive operations, enforce IF EXISTS, run the migration check, and confirm schema lands with its migration in one commit. Use when the user changes a Drizzle schema file, says 'generate a migration', 'add a column/table', 'db:generate', or is about to ship a schema change.",
+      "version": "0.1.0"
+    },
+    {
+      "name": "vercel-triage",
+      "source": "./skills/engineering/vercel-triage",
+      "description": "Pull, dedupe, and triage Vercel production logs down to genuine failures, working around the CLI's traps (events duplicated many times, short --until windows, ~24h retention). Use when the user says 'check the vercel logs', 'is prod erroring', 'triage production', 'why are users seeing errors', or wants a production health read.",
+      "version": "0.1.0"
+    },
+    {
+      "name": "morning-brief",
+      "source": "./skills/productivity/morning-brief",
+      "description": "Produce a one-screen morning brief: an INTERNAL section (git activity, open PRs, and relay ledgers across the user's repos) and an EXTERNAL section (news pulled from sources listed in a config file), optionally delivered to Telegram. Use when the user says 'morning brief', 'daily digest', 'catch me up', 'what happened overnight', 'get the news', or wants a start-of-day summary without browsing.",
+      "version": "0.1.0"
     }
   ]
 }

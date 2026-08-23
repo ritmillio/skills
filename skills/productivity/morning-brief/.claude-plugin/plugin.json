@@ -1,0 +1,9 @@
+{
+  "name": "morning-brief",
+  "description": "Produce a one-screen morning brief: an INTERNAL section (git activity, open PRs, and relay ledgers across the user's repos) and an EXTERNAL section (news pulled from sources listed in a config file), optionally delivered to Telegram. Use when the user says 'morning brief', 'daily digest', 'catch me up', 'what happened overnight', 'get the news', or wants a start-of-day summary without browsing.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}

@@ -1,0 +1,4 @@
+# morning-brief — repos to summarise. One absolute path per line.
+# Copy to ~/.config/morning-brief/repos.txt and edit.
+/Users/you/Developer/your-main-app
+/Users/you/Developer/your-scrapers
