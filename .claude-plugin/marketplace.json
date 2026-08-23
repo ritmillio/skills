@@ -60,6 +60,12 @@
         "dev-environment",
         "triage"
       ]
+    },
+    {
+      "name": "mac-compromise-check",
+      "source": "./skills/engineering/mac-compromise-check",
+      "description": "Run a read-only compromise triage on a macOS machine: accounts, remote access, listening ports, launchd/cron persistence, browser extensions, MDM/config profiles, and system hardening (FileVault/SIP/Gatekeeper). Trace a specific email or account across the machine. Use when the user says 'is my Mac hacked', 'check if my Mac is compromised', 'did someone access my machine', shows a suspicious sign-in, or wants a security audit of their laptop.",
+      "version": "0.1.0"
     }
   ]
 }

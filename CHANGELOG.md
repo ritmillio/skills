@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- `mac-compromise-check`: read-only "is my Mac hacked?" triage. A `scan.sh`
+  that walks the places persistence and remote access actually live — accounts,
+  remote logins, `authorized_keys`, listening ports, launchd/cron, browser
+  extensions, MDM profiles, FileVault/SIP/Gatekeeper — printing a verdict and
+  flagging only what needs a human. A `trace.sh` that runs down a scary account
+  name to its real source: greps disk/Spotlight/Keychain/git/history, then
+  reconstructs the browser sign-in timeline so an `AddSession → rejected`
+  sequence reads as "denied, no session", not an intrusion. The load-bearing
+  lesson (`references/tracing.md`): a symptom is where the user *saw* something,
+  not where the problem *is* — the Google account-picker draws from Google's
+  cookies, not from anything on the Mac. Neither script mutates anything.
 - `reclaim`: diagnose and fix a dev machine pinned at high CPU/RAM/load.
   Leads with the System-vs-User split, because a top-of-list process is
   usually a symptom — `launchservicesd` at 300% is spawn churn, not work.
