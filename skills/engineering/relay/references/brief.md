@@ -12,16 +12,20 @@ uncommitted is lost too.
 - IN SCOPE: {{SCOPE}}
 - OUT OF SCOPE: {{OUT_OF_SCOPE}}
 - BRANCH: `{{BRANCH}}` — you are already in the right worktree. Never switch, rebase, or reset it.
+- ENDS WHEN: {{ENDS_WHEN}}
 
 ## Do exactly this
 
 1. **Read `{{LEDGER}}` in full.** Then `git log --oneline -10` to see what the
    previous iterations actually landed. The ledger says what was intended; the
    git log says what is true. When they disagree, trust the log and fix the ledger.
-2. **Pick ONE item** — the top unblocked entry under `## Backlog`. If every item
-   is blocked or the backlog is empty, this iteration's unit of work is a hunt:
-   go find real defects or real gaps in the mission area, append 3 to 6 new
-   backlog items grounded in evidence you actually gathered, and stop there.
+2. **Pick ONE item.** If this run has a completion contract, pick the item that
+   moves an unmet criterion to met — the prompt above shows which are still red,
+   and `.loop/done.status` says the same thing. Otherwise take the top unblocked
+   entry under `## Backlog`. If every item is blocked or the backlog is empty,
+   this iteration's unit of work is a hunt: go find real defects or real gaps in
+   the mission area, append 3 to 6 new backlog items grounded in evidence you
+   actually gathered, and stop there.
 3. **Do that one item.** Resist doing a second. A small landed change beats a
    large one that a timeout kills.
 4. **Verify by running, not by reading.** A finding inferred from source is a
@@ -38,6 +42,20 @@ uncommitted is lost too.
      (a decision, a spend, an irreversible action, an ambiguity in the mission)
    - append durable lessons to `## Standing rules` so later iterations inherit them
 7. **Commit the ledger update too**, then exit.
+
+## The completion contract
+
+If `.loop/done.d/` holds checks, this run ends when every one of them exits 0,
+not when the clock runs out. `.loop/check-done.sh` runs them all and prints what
+is left; run it yourself when you think you just closed a criterion, because
+being right about that ends the run early and correctly.
+
+- **Never edit, weaken, or delete a check to make it pass.** That is the one
+  move that makes the whole mechanism worthless. A criterion you believe is
+  wrong goes under `## For the founder`, and its check stays red.
+- **A criterion with no check is not a criterion.** If `## Done when` in the
+  ledger names something `.loop/done.d/` does not cover, writing that check is a
+  legitimate unit of work — do that rather than guessing whether it is met.
 
 ## Hard rules
 

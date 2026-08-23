@@ -12,7 +12,12 @@
 #   relay.sh --dir <worktree> --ledger <path-rel-to-dir> --branch <name> [opts]
 #
 # Stop it at any time:  touch <worktree>/.loop/STOP
-# Watch it:             tail -f <worktree>/.loop/relay.log
+# Watch it:             .loop/watch.sh          (live dashboard)
+#                       tail -f <worktree>/.loop/live.log    (raw stream)
+#
+# Ending on done, not on a clock: if <worktree>/.loop/done.d holds executable
+# checks, the relay runs them around every iteration and stops the moment they
+# all pass. --hours then becomes the safety cap it should always have been.
 #
 # Usage limits: an exhausted usage window is NOT a dry iteration. The relay
 # detects the limit-reached error, waits for the window to reset (STOP still
@@ -27,6 +32,8 @@ ITER_TIMEOUT=2700          # 45 min per iteration
 MAX_PARALLEL="${RELAY_MAX_PARALLEL:-2}"   # relay iterations allowed to run at once, machine-wide
 BUDGET=""                  # optional --max-budget-usd per iteration
 SETTLE=5                   # seconds between iterations
+CHECK_EVERY=1              # run the completion contract every N iterations
+CHECK_TIMEOUT="${RELAY_CHECK_TIMEOUT:-900}"   # per-check ceiling
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -42,6 +49,8 @@ while [[ $# -gt 0 ]]; do
     --iter-timeout)  ITER_TIMEOUT="$2"; shift 2 ;;
     --max-parallel)  MAX_PARALLEL="$2"; shift 2 ;;
     --budget)        BUDGET="$2"; shift 2 ;;
+    --check-every)   CHECK_EVERY="$2"; shift 2 ;;
+    --check-timeout) CHECK_TIMEOUT="$2"; shift 2 ;;
     *) echo "unknown flag: $1" >&2; exit 2 ;;
   esac
 done
@@ -56,13 +65,23 @@ case "$BRANCH" in
     echo "relay.sh: refusing to run on protected branch '$BRANCH'" >&2; exit 2 ;;
 esac
 
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE="$DIR/.loop"
 mkdir -p "$STATE/iter"
 BRIEF="$STATE/brief.md"
 COMPACT_BRIEF="$STATE/compaction-brief.md"
 RELAY_LOG="$STATE/relay.log"
+LIVE_LOG="$STATE/live.log"
+DONE_DIR="$STATE/done.d"
 [[ -f "$BRIEF" ]] || { echo "relay.sh: missing $BRIEF (run setup first)" >&2; exit 2; }
 [[ -f "$COMPACT_BRIEF" ]] || COMPACT_EVERY=0
+
+# The worktree carries its own copies, so an iteration can run `.loop/check-done.sh`
+# without knowing where the skill is installed, and a run survives the skill
+# directory moving underneath it.
+for helper in progress.sh check-done.sh watch.sh; do
+  [[ -f "$HERE/$helper" ]] && cp -f "$HERE/$helper" "$STATE/$helper" && chmod +x "$STATE/$helper"
+done
 
 # `timeout` is not on macOS by default; use whatever exists, else run bare.
 TIMEOUT_BIN="$(command -v timeout || command -v gtimeout || true)"
@@ -70,11 +89,43 @@ TIMEOUT_BIN="$(command -v timeout || command -v gtimeout || true)"
 log() { printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$RELAY_LOG"; }
 status() { printf '%s\n' "$*" > "$STATE/status"; }
 
+# Everything a watcher needs to render the run without parsing the log.
+write_meta() {
+  { printf 'DIR=%s\n' "$DIR"; printf 'BRANCH=%s\n' "$BRANCH"
+    printf 'LEDGER=%s\n' "$LEDGER"; printf 'HOURS=%s\n' "$HOURS"
+    printf 'PID=%s\n' "$$"; printf 'START=%s\n' "${START:-}"
+    printf 'DEADLINE=%s\n' "${DEADLINE:-}"; printf 'ITER=%s\n' "${started:-0}"
+    printf 'COMMITTED=%s\n' "${committed:-0}"; printf 'COST=%s\n' "${cost_total:-0}"
+    printf 'GATED=%s\n' "${gate_on:-0}"; printf 'ENDED=%s\n' "${ENDED:-}"
+  } > "$STATE/meta.tmp" && mv -f "$STATE/meta.tmp" "$STATE/meta"
+}
+
+# The live log is the per-event stream; it is the only thing that makes a
+# 45-minute iteration distinguishable from a hung one. Keep it bounded.
+trim_live() {
+  local n
+  n="$(wc -l < "$LIVE_LOG" 2>/dev/null || echo 0)"
+  if (( n > 20000 )); then tail -n 5000 "$LIVE_LOG" > "$LIVE_LOG.tmp" && mv -f "$LIVE_LOG.tmp" "$LIVE_LOG"; fi
+}
+
+# --- completion contract ---------------------------------------------------
+# A duration is a budget. A contract is a goal. When .loop/done.d holds
+# executable checks the run ends the moment every one of them exits 0, and
+# --hours is only the ceiling that stops a runaway.
+gate_on=0
+if [[ -d "$DONE_DIR" ]] && [[ -n "$(find "$DONE_DIR" -maxdepth 1 -type f -perm -u+x ! -name '*.md' 2>/dev/null | head -1)" ]]; then
+  gate_on=1
+fi
+contract_met() {   # 0 = every criterion passes
+  (( gate_on )) || return 1
+  "$STATE/check-done.sh" --dir "$DIR" --timeout "$CHECK_TIMEOUT" >>"$RELAY_LOG" 2>&1
+}
+
 # Optional outbound notifier. Any executable taking `--relay <body>` with the
 # event kind in $RELAY_EVENT works; unset or missing means the relay is silent.
 # Backgrounded and never checked: a notification must not be able to end a run.
 NOTIFY="${RELAY_NOTIFY:-$HOME/.claude/telegram-notify.sh}"
-notify() {  # notify <start|landed|halt|limit|end> <body>
+notify() {  # notify <start|landed|halt|limit|done|end> <body>
   [[ -x "$NOTIFY" ]] || return 0
   ( RELAY_EVENT="$1" "$NOTIFY" --relay "$2" >/dev/null 2>&1 & ) >/dev/null 2>&1
   return 0
@@ -152,35 +203,67 @@ trap 'STOPPING=1; log "signal received, finishing after this iteration"' INT TER
 
 START=$(date +%s)
 DEADLINE=$(( START + HOURS * 3600 ))
-iter=0; dry=0; committed=0; failed=0; cost_total=0
+iter=0; started=0; dry=0; committed=0; failed=0; cost_total=0
+DONE_REASON="budget"
 limit_waited=0; LIMIT_WAIT_CAP=43200   # give up after 12h of cumulative limit waits
 
 log "=== relay start ==="
 log "dir=$DIR branch=$BRANCH ledger=$LEDGER model=$MODEL hours=$HOURS"
 log "max-parallel=$MAX_PARALLEL (machine-wide relay iteration slots)"
+if (( gate_on )); then
+  log "ending on: the completion contract in $DONE_DIR ($HOURS h is the cap)"
+else
+  log "ending on: the ${HOURS}h budget (no completion contract defined)"
+fi
+log "watch with: $STATE/watch.sh"
 log "stop with: touch $STATE/STOP"
-notify start "$(printf 'branch: %s\nledger: %s\nmodel: %s, budget: %sh\ndir: %s' \
-  "$BRANCH" "$LEDGER" "$MODEL" "$HOURS" "$DIR")"
+write_meta
+notify start "$(printf 'branch: %s\nledger: %s\nmodel: %s, budget: %sh\nends on: %s\ndir: %s' \
+  "$BRANCH" "$LEDGER" "$MODEL" "$HOURS" \
+  "$( (( gate_on )) && echo 'completion contract' || echo 'the clock')" "$DIR")"
 
 while true; do
   iter=$(( iter + 1 ))
   now=$(date +%s)
 
-  if [[ -f "$STATE/STOP" ]]; then log "STOP file present, ending"; break; fi
-  if (( STOPPING )); then log "stopping on signal"; break; fi
-  if (( now >= DEADLINE )); then log "wall-clock budget of ${HOURS}h reached"; break; fi
-  if (( iter > MAX_ITERS )); then log "max iterations ($MAX_ITERS) reached"; break; fi
-  if (( dry >= DRY_LIMIT )); then log "$dry consecutive no-progress iterations, ending"; break; fi
+  if [[ -f "$STATE/STOP" ]]; then log "STOP file present, ending"; DONE_REASON="stopped"; break; fi
+  if (( STOPPING )); then log "stopping on signal"; DONE_REASON="signal"; break; fi
+  if (( now >= DEADLINE )); then log "wall-clock budget of ${HOURS}h reached"; DONE_REASON="budget"; break; fi
+  if (( iter > MAX_ITERS )); then log "max iterations ($MAX_ITERS) reached"; DONE_REASON="max-iters"; break; fi
+  if (( dry >= DRY_LIMIT )); then log "$dry consecutive no-progress iterations, ending"; DONE_REASON="dry"; break; fi
 
   # The single most dangerous thing in a shared checkout is a branch flip
   # underneath a running loop. Assert it every single iteration.
   cur="$(git -C "$DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo UNKNOWN)"
   if [[ "$cur" != "$BRANCH" ]]; then
     log "FATAL branch drift: expected '$BRANCH', found '$cur'. Refusing to continue."
+    DONE_REASON="branch-drift"
     status "HALTED branch-drift $cur"
     notify halt "$(printf 'Branch drift on %s.\nExpected %s, found %s. Run stopped.' \
       "$(basename "$DIR")" "$BRANCH" "$cur")"
     break
+  fi
+
+  if ! slot_acquire; then log "stopping while waiting for a CPU slot"; DONE_REASON="stopped"; break; fi
+
+  # The contract is checked before the first iteration too: a mission that is
+  # already satisfied must not burn a single hour proving it again, and the
+  # first iteration wants a fresh done.status to aim at.
+  if (( gate_on )) && (( (iter - 1) % CHECK_EVERY == 0 )); then
+    status "CHECKING contract iter=$iter"
+    log "checking the completion contract"
+    if contract_met; then
+      log "=== every completion criterion passes: mission complete ==="
+      awk -F'\t' '$1=="PASS"{printf "    [x] %s\n",$3} $1=="FAIL"||$1=="TIMEOUT"{printf "    [ ] %s\n",$3}' \
+        "$STATE/done.status" 2>/dev/null | tee -a "$RELAY_LOG" >/dev/null
+      status "DONE contract-met iters=$started landed=$committed cost=$cost_total"
+      notify done "$(printf 'Mission complete on %s after %s iterations (%s landed, $%s).\n\n%s' \
+        "$BRANCH" "$started" "$committed" "$cost_total" \
+        "$(grep -c '^PASS' "$STATE/done.status" 2>/dev/null) criteria verified")"
+      DONE_REASON="contract-met"
+      break
+    fi
+    log "    $(grep -m1 '^# [0-9]' "$STATE/done.status" 2>/dev/null | sed 's/^# //')"
   fi
 
   if (( COMPACT_EVERY > 0 && iter % COMPACT_EVERY == 0 )); then
@@ -192,35 +275,66 @@ while true; do
   n="$(printf '%03d' "$iter")"
   out="$STATE/iter/$n.json"; err="$STATE/iter/$n.err"
   head_before="$(git -C "$DIR" rev-parse HEAD)"
-  remaining_min=$(( (DEADLINE - now) / 60 ))
+  # Recomputed rather than reused: the contract check above can take minutes.
+  remaining_min=$(( (DEADLINE - $(date +%s)) / 60 ))
 
-  prompt="You are iteration ${iter} (${kind}) of an unattended loop. About ${remaining_min} minutes remain in the run.
+  # An iteration that can see which criteria are still red aims at them. The
+  # brief points at done.status too, but putting it in the prompt costs nothing
+  # and removes a step the iteration could skip.
+  contract_note=""
+  if (( gate_on )); then
+    contract_note="
+
+This run ends when every criterion below is met, not when the clock runs out.
+State of the completion contract as of a moment ago:
+$(awk -F'\t' '$1=="PASS"{printf "  [x] %s\n",$3} $1=="FAIL"||$1=="TIMEOUT"{printf "  [ ] %s -- %s\n",$3,$4}' "$STATE/done.status" 2>/dev/null)
+
+Prefer work that moves an unmet criterion to met."
+  fi
+
+  prompt="You are iteration ${iter} (${kind}) of an unattended loop. About ${remaining_min} minutes remain in the run.${contract_note}
 
 $(cat "$brief_file")"
 
-  if ! slot_acquire; then log "stopping while waiting for a CPU slot"; break; fi
-
+  started=$(( started + 1 ))
   log "--- iteration $iter ($kind) start ---"
   status "RUNNING iter=$iter kind=$kind since=$(date '+%H:%M:%S')"
+  write_meta   # so a watcher counts the iteration that is running, not the last finished one
 
+  # Stream, do not buffer. With --output-format json nothing leaves the process
+  # until the iteration is over, so 45 minutes of real work looks exactly like a
+  # hang. The events go through progress.sh into live.log as they happen, and
+  # the raw JSONL is kept for the result record.
   cmd=(claude -p "$prompt"
        --dangerously-skip-permissions
        --model "$MODEL"
-       --output-format json
+       --output-format stream-json
+       --verbose
        --no-session-persistence)
   [[ -n "$FALLBACK" ]] && cmd+=(--fallback-model "$FALLBACK")
   [[ -n "$BUDGET"   ]] && cmd+=(--max-budget-usd "$BUDGET")
 
+  raw="$STATE/iter/$n.jsonl"
   if [[ -n "$TIMEOUT_BIN" ]]; then
-    ( cd "$DIR" && "$TIMEOUT_BIN" "$ITER_TIMEOUT" "${cmd[@]}" ) >"$out" 2>"$err"
+    ( cd "$DIR" && "$TIMEOUT_BIN" "$ITER_TIMEOUT" "${cmd[@]}" ) 2>"$err" \
+      | tee "$raw" | "$STATE/progress.sh" "i$n" | tee -a "$LIVE_LOG" >/dev/null
   else
-    ( cd "$DIR" && "${cmd[@]}" ) >"$out" 2>"$err"
+    ( cd "$DIR" && "${cmd[@]}" ) 2>"$err" \
+      | tee "$raw" | "$STATE/progress.sh" "i$n" | tee -a "$LIVE_LOG" >/dev/null
   fi
-  rc=$?
+  rc=${PIPESTATUS[0]}
   slot_release
 
+  # The final result event carries is_error, cost and the model's own report;
+  # keep it where the rest of this script already expects to find it.
+  jq -c 'select(.type == "result")' "$raw" 2>/dev/null | tail -1 > "$out"
+  trim_live
+
   head_after="$(git -C "$DIR" rev-parse HEAD)"
-  is_error="$(jq -r '.is_error // "true"' "$out" 2>/dev/null || echo true)"
+  # `.is_error // "true"` would be wrong: jq's // fires on false as well as
+  # null, so every clean iteration would read as an error.
+  is_error="$(jq -r 'if .is_error == false then "false" else "true" end' "$out" 2>/dev/null | tail -1)"
+  [[ -n "$is_error" ]] || is_error=true
   cost="$(jq -r '.total_cost_usd // 0' "$out" 2>/dev/null || echo 0)"
   result="$(jq -r '.result // ""' "$out" 2>/dev/null || echo '')"
   cost_total="$(awk -v a="$cost_total" -v b="$cost" 'BEGIN{printf "%.4f", a+b}')"
@@ -233,12 +347,14 @@ $(cat "$brief_file")"
   limit_msg=""
   if [[ "$head_before" == "$head_after" && ( "$is_error" == "true" || $rc -ne 0 ) ]]; then
     limit_msg="$( { printf '%s\n' "$result"; head -c 2000 "$out" 2>/dev/null; \
+                    tail -c 3000 "$raw" 2>/dev/null; \
                     head -c 2000 "$err" 2>/dev/null; } \
                   | grep -iE 'usage limit|rate limit|session limit|weekly limit|limit reached|hit your limit|reached your limit|resets [0-9]|try again (later|in)' | head -1 )"
   fi
   if [[ -n "$limit_msg" ]]; then
     # Claude Code appends the reset time as "...|<epoch>" when it knows it.
-    reset_epoch="$( { printf '%s\n' "$result"; head -c 2000 "$out" 2>/dev/null; } \
+    reset_epoch="$( { printf '%s\n' "$result"; head -c 2000 "$out" 2>/dev/null; \
+                      tail -c 3000 "$raw" 2>/dev/null; } \
                     | grep -oE '\|[0-9]{9,10}' | head -1 | tr -d '|' )"
     now=$(date +%s)
     if [[ -n "$reset_epoch" ]] && (( reset_epoch > now )); then
@@ -249,6 +365,7 @@ $(cat "$brief_file")"
     (( wait_s > 21600 )) && wait_s=21600
     if (( limit_waited + wait_s > LIMIT_WAIT_CAP )); then
       log "cumulative usage-limit waits would exceed $(( LIMIT_WAIT_CAP / 3600 ))h, ending"
+      DONE_REASON="usage-limit-cap"
       status "HALTED usage-limit-wait-cap"
       notify halt "Usage-limit waiting cap reached on $BRANCH. Run stopped."
       break
@@ -267,6 +384,7 @@ $(cat "$brief_file")"
     limit_waited=$(( limit_waited + waited ))
     DEADLINE=$(( DEADLINE + waited ))   # the pause must not eat working hours
     iter=$(( iter - 1 ))                # a blocked probe is not an iteration
+    write_meta
     continue
   fi
   # ---------------------------------------------------------------------------
@@ -302,14 +420,27 @@ $(cat "$brief_file")"
   # only place a human sees why an iteration decided what it decided.
   [[ -n "$result" ]] && printf '    report: %s\n' "$(printf '%s' "$result" | tr '\n' ' ' | cut -c1-400)" >> "$RELAY_LOG"
 
+  write_meta
   sleep "$SETTLE"
 done
 
 elapsed=$(( ( $(date +%s) - START ) / 60 ))
-# Every break path leaves `iter` one past the last iteration that actually ran.
-ran=$(( iter - 1 ))
-log "=== relay end: ${ran} iterations, ${committed} landed, ${failed} failed, ${elapsed} min, \$${cost_total} ==="
-status "DONE iters=$ran landed=$committed failed=$failed cost=$cost_total"
-notify end "$(printf '%s: %s iterations, %s landed, %s failed, %s min, $%s\n\n%s' \
-  "$BRANCH" "$ran" "$committed" "$failed" "$elapsed" "$cost_total" \
+ran=$started
+
+# A gated run that ended on anything but the contract owes the founder the list
+# of what is still outstanding. That is the first thing they will want at 7am.
+outstanding=""
+if (( gate_on )) && [[ "$DONE_REASON" != "contract-met" ]]; then
+  outstanding="$(awk -F'\t' '$1=="FAIL"||$1=="TIMEOUT"{printf "  still open: %s\n",$3}' \
+                 "$STATE/done.status" 2>/dev/null)"
+  [[ -n "$outstanding" ]] && printf '%s\n' "$outstanding" | tee -a "$RELAY_LOG"
+fi
+
+log "=== relay end ($DONE_REASON): ${ran} iterations, ${committed} landed, ${failed} failed, ${elapsed} min, \$${cost_total} ==="
+status "DONE reason=$DONE_REASON iters=$ran landed=$committed failed=$failed cost=$cost_total"
+ENDED=$(date +%s)
+write_meta
+notify end "$(printf '%s ended: %s\n%s iterations, %s landed, %s failed, %s min, $%s\n%s\n%s' \
+  "$BRANCH" "$DONE_REASON" "$ran" "$committed" "$failed" "$elapsed" "$cost_total" \
+  "$outstanding" \
   "$(git -C "$DIR" log --oneline --no-decorate -12 2>/dev/null)")"
