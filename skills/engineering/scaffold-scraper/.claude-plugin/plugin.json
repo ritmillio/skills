@@ -1,0 +1,9 @@
+{
+  "name": "scaffold-scraper",
+  "description": "Stamp a new country x vertical scraper in a clausis-scrapers-style monorepo: create the workspace package, framework-wired cli.ts, typed scraper.ts skeleton, extraction schema, R2 key generator, and test stubs, then wire root scripts, the Railway cron case, and the pnpm workspace. Use when the user says 'add a scraper', 'scaffold a country', 'new vertical', 'add <country> laws/courts', or is expanding the corpus to a new jurisdiction.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}

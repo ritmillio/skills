@@ -1,0 +1,27 @@
+/**
+ * R2 key generation for __COUNTRY__ __VERTICAL_TITLE__.
+ * Pattern: __R2_PREFIX__/{year}/{id}.json — one JSON per document.
+ */
+
+import type { R2KeyGenerator } from "@clausis/shared";
+import type { __TYPE_NAME__ } from "./scraper.js";
+
+export const __VAR__R2Keys: R2KeyGenerator<__TYPE_NAME__> = {
+  getKey(doc) {
+    // TODO(scaffold): confirm the natural key for this source.
+    return `__R2_PREFIX__/${doc.year}/${doc.docNumber}.json`;
+  },
+
+  getPrefix(year) {
+    if (year) return `__R2_PREFIX__/${year}/`;
+    return `__R2_PREFIX__/`;
+  },
+};
+
+/**
+ * R2 key for the original (legally binding) document of the fetched version.
+ */
+export function getOriginalR2Key(doc: __TYPE_NAME__, extension: "pdf" | "rtf"): string {
+  // TODO(scaffold): match the reference vertical's originals key shape.
+  return `__R2_PREFIX__/${doc.year}/originals/${doc.docNumber}.${extension}`;
+}

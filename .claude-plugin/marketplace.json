@@ -72,6 +72,12 @@
       "source": "./skills/bookkeeping/collect-bills",
       "description": "Sweep mailboxes for vendor invoices billed to the company, drop anything without the company tax number, diff against what is already archived, and download only the delta. Use when the user says collect the bills, gather receipts, get the invoices, or do the bookkeeping.",
       "version": "0.1.0"
+    },
+    {
+      "name": "scaffold-scraper",
+      "source": "./skills/engineering/scaffold-scraper",
+      "description": "Stamp a new country x vertical scraper in a clausis-scrapers-style monorepo: create the workspace package, framework-wired cli.ts, typed scraper.ts skeleton, extraction schema, R2 key generator, and test stubs, then wire root scripts, the Railway cron case, and the pnpm workspace. Use when the user says 'add a scraper', 'scaffold a country', 'new vertical', 'add <country> laws/courts', or is expanding the corpus to a new jurisdiction.",
+      "version": "0.1.0"
     }
   ]
 }

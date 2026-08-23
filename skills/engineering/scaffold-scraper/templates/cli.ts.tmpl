@@ -1,0 +1,137 @@
+#!/usr/bin/env tsx
+/**
+ * CLI for __COUNTRY__ __VERTICAL_TITLE__ Scraper (__SOURCE__)
+ *
+ * Usage:
+ *   pnpm __COUNTRY_LC__:__ALIAS__:test
+ *   pnpm __COUNTRY_LC__:__ALIAS__:sample 5
+ *   pnpm __COUNTRY_LC__:__ALIAS__:bootstrap --year-from 2015 --year-to 2015
+ *   pnpm __COUNTRY_LC__:__ALIAS__:update --since 2026-08-01
+ */
+
+import { writeFileSync, mkdirSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createCli, runPipeline } from "@clausis/shared";
+import { isR2Configured, put } from "@clausis/storage";
+import { runIndexCommand } from "@clausis/tpuf";
+import {
+  testConnection,
+  fetchDocument,
+  listDocuments,
+  fetchAll,
+  fetchUpdates,
+  type __TYPE_NAME__,
+  type ScrapeGap,
+} from "./scraper.js";
+import { __VAR__R2Keys } from "./r2-keys.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = join(__dirname, "..", "data");
+
+/**
+ * Store the original document to R2.
+ * TODO(scaffold): port the reference vertical's storeOriginal (PDF-sniff +
+ * DowngradeLog + RTF fallback). This stub just strips transient HTML.
+ */
+async function storeOriginal(doc: __TYPE_NAME__): Promise<__TYPE_NAME__> {
+  const { _rawHtml, ...rest } = doc;
+  return rest as __TYPE_NAME__;
+}
+
+createCli({
+  name: "__COUNTRY__ __VERTICAL_TITLE__ Scraper",
+  description: "__SOURCE__ — __URL__",
+
+  // Refuses a multi-hour bootstrap that would only write to local scratch.
+  storage: { isConfigured: isR2Configured },
+
+  commands: {
+    async index(signal, flags) {
+      await runIndexCommand({ dataDir: DATA_DIR, keys: __VAR__R2Keys, flags, signal });
+    },
+
+    async test() {
+      console.log("Testing connection to __URL__ ...\n");
+      const ok = await testConnection();
+      console.log(isR2Configured() ? "R2 storage: configured" : "R2 storage: not configured (local-only)");
+      process.exit(ok ? 0 : 1);
+    },
+
+    async sample(count, flags) {
+      const sampleDir = join(DATA_DIR, "sample");
+      mkdirSync(sampleDir, { recursive: true });
+      const year = parseInt(flags["year"] ?? "2015", 10);
+      console.log(`Fetching ${count} sample documents from ${year}...\n`);
+
+      const ids = await listDocuments(year);
+      let n = 0;
+      for (const id of ids) {
+        if (n >= count) break;
+        let doc = await fetchDocument(year, id);
+        if (!doc) continue;
+        doc = await storeOriginal(doc);
+        writeFileSync(join(sampleDir, `${doc._id}.json`), JSON.stringify(doc, null, 2), "utf-8");
+        if (isR2Configured()) {
+          await put(__VAR__R2Keys.getKey(doc), JSON.stringify(doc, null, 2), {
+            contentType: "application/json",
+          });
+        }
+        n++;
+        console.log(`  Saved: ${doc.citation} — ${doc.name.slice(0, 50)}`);
+      }
+      console.log(`\nSample complete: ${n} document(s) -> ${sampleDir}`);
+    },
+
+    async bootstrap(yearFrom, yearTo, signal, flags) {
+      const bootstrapDir = join(DATA_DIR, "bootstrap");
+      console.log(`Bootstrap __SOURCE__: ${yearFrom}-${yearTo}\n`);
+      const r2Put = isR2Configured() ? put : undefined;
+      const gaps: ScrapeGap[] = [];
+      const documents = fetchAll({ yearFrom, yearTo, signal, onGap: (g) => gaps.push(g) });
+
+      const result = await runPipeline({
+        documents,
+        r2Keys: __VAR__R2Keys,
+        dataDir: bootstrapDir,
+        r2Put: r2Put ? (key, data, opts) => r2Put(key, data, opts) : undefined,
+        storeOriginal,
+        signal,
+      });
+
+      if (result.aborted) {
+        console.error(`\nBootstrap INTERRUPTED: ${result.total} of ${yearFrom}-${yearTo} — corpus INCOMPLETE`);
+      } else {
+        console.log(`\nBootstrap complete: ${result.total} document(s)`);
+      }
+      if (gaps.length > 0) console.error(`Gaps: ${gaps.length} unreadable — corpus INCOMPLETE`);
+    },
+
+    async update(since, signal, flags) {
+      const updateDir = join(DATA_DIR, "updates");
+      console.log(`Fetching changes since ${since}...\n`);
+      const r2Put = isR2Configured() ? put : undefined;
+      const gaps: ScrapeGap[] = [];
+      const documents = fetchUpdates(since, signal, { onGap: (g) => gaps.push(g) });
+
+      const result = await runPipeline({
+        documents,
+        r2Keys: __VAR__R2Keys,
+        dataDir: updateDir,
+        r2Put: r2Put ? (key, data, opts) => r2Put(key, data, opts) : undefined,
+        storeOriginal,
+        signal,
+      });
+
+      if (result.aborted) {
+        console.error(`\nUpdate INTERRUPTED: ${result.total} written — sweep since ${since} did NOT finish`);
+      } else {
+        console.log(`\nUpdate complete: ${result.total} changed/new since ${since}`);
+      }
+      if (gaps.length > 0) console.error(`Gaps: ${gaps.length} unreadable — change detection skipped them`);
+    },
+  },
+}).catch((error) => {
+  console.error("Fatal error:", error);
+  process.exit(1);
+});

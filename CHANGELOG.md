@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- `scaffold-scraper`: stamp a new country x vertical scraper in a
+  clausis-scrapers-style monorepo. `scaffold.sh` creates the workspace package,
+  a `createCli`-wired `cli.ts`, a typed `scraper.ts` skeleton, `extraction-
+  schema.ts`, `r2-keys.ts`, and a test stub — all token-substituted and written
+  to **compile against the framework as-is** (verified: a freshly stamped package
+  passes `tsc --noEmit` before any bespoke code). Then it prints the three wiring
+  edits that are easy to forget: root scripts, the Railway cron `case`, and the
+  pnpm workspace (new-country only, auto-detected). It refuses to overwrite, and
+  points you at the nearest existing vertical to copy the site-specific fetch/
+  parse logic. Portable: BSD-sed / bash-3.2 safe. `references/wiring.md` carries
+  the framework contract (`createCli`, `ScrapedDocument`, `R2KeyGenerator`,
+  `runPipeline`, `runIndexCommand`).
+
 - `mac-compromise-check`: read-only "is my Mac hacked?" triage. A `scan.sh`
   that walks the places persistence and remote access actually live — accounts,
   remote logins, `authorized_keys`, listening ports, launchd/cron, browser

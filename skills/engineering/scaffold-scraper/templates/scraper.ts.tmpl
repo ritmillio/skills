@@ -1,0 +1,77 @@
+/**
+ * __COUNTRY__ __VERTICAL_TITLE__ scraper — __SOURCE__
+ * Source: __URL__
+ *
+ * TODO(scaffold): this is a skeleton. Copy the fetch/list/parse logic from the
+ * nearest existing vertical of the same document type and adapt it to this
+ * source. Keep the exported names below — cli.ts is already wired to them.
+ */
+
+import type { ScrapedDocument } from "@clausis/shared";
+
+/** One __VERTICAL_TITLE__ document from __SOURCE__. */
+export interface __TYPE_NAME__ extends ScrapedDocument {
+  // Framework fields (_id, _source, _type, _country, _fetchedAt, _contentHash)
+  // come from ScrapedDocument. Add source-specific fields below.
+  year: number;
+  docNumber: string;
+  citation: string;
+  name: string;
+  text: string;
+  contentLength: number;
+  /** Public URL of the binding original, when the source links one. */
+  officialPdfUrl?: string;
+  /** Transient page HTML; storeOriginal strips it before persistence. */
+  _rawHtml?: string;
+  /** Set by storeOriginal once the original lands in R2. */
+  _sourceFile?: { r2Key: string; contentType: string; url?: string };
+  ai?: unknown;
+}
+
+/** A document the run could not read; surfaced on the summary, not swallowed. */
+export interface ScrapeGap {
+  id: string;
+  reason: string;
+}
+
+/** Cheap liveness probe used by `cli.ts test`. */
+export async function testConnection(): Promise<boolean> {
+  // TODO(scaffold): HEAD/GET the source root and return ok.
+  throw new Error("testConnection not implemented — port from the reference vertical");
+}
+
+/** Fetch a single document by its natural key. */
+export async function fetchDocument(
+  year: number,
+  docNumber: string
+): Promise<__TYPE_NAME__ | null> {
+  // TODO(scaffold)
+  throw new Error("fetchDocument not implemented");
+}
+
+/** List the document ids available for a given year (for `sample`). */
+export async function listDocuments(year: number): Promise<string[]> {
+  // TODO(scaffold)
+  throw new Error("listDocuments not implemented");
+}
+
+/** Full bootstrap: yield every document in [yearFrom, yearTo]. */
+export async function* fetchAll(opts: {
+  yearFrom: number;
+  yearTo: number;
+  signal: AbortSignal;
+  onGap?: (gap: ScrapeGap) => void;
+}): AsyncGenerator<__TYPE_NAME__> {
+  // TODO(scaffold): walk the source and yield documents; call onGap on failures.
+  throw new Error("fetchAll not implemented");
+}
+
+/** Incremental: yield documents changed/added since `since` (ISO date). */
+export async function* fetchUpdates(
+  since: string,
+  signal: AbortSignal,
+  opts?: { onGap?: (gap: ScrapeGap) => void }
+): AsyncGenerator<__TYPE_NAME__> {
+  // TODO(scaffold): the change-detection sweep.
+  throw new Error("fetchUpdates not implemented");
+}

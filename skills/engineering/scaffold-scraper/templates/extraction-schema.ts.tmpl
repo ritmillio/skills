@@ -1,0 +1,21 @@
+/**
+ * __COUNTRY__ AI extraction schema for __VERTICAL_TITLE__.
+ * Extracts summary, keywords, legal area, and references from full text.
+ *
+ * TODO(scaffold): the legal-area union is language-specific. Copy and adapt the
+ * area list + folding/synonym patterns from the reference vertical's
+ * extraction-schema.ts, then wire it into `extractMetadataWithModel`.
+ */
+
+import type { ExtractionSchema } from "@clausis/extraction";
+
+export interface __TYPE_NAME__Extraction {
+  summary: string;
+  keywords: string[];
+  lawReferences: string[];
+  legalArea: string;
+}
+
+// TODO(scaffold): replace with a real ExtractionSchema<__TYPE_NAME__Extraction>
+// modelled on the reference vertical (areas union, prompt, coercion).
+export const __VAR__Schema = {} as ExtractionSchema<__TYPE_NAME__Extraction>;
