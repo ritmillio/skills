@@ -1,6 +1,6 @@
 ---
 name: mac-compromise-check
-description: "Run a read-only compromise triage on a macOS machine: accounts, remote access, listening ports, launchd/cron persistence, browser extensions, MDM/config profiles, and system hardening (FileVault/SIP/Gatekeeper). Trace a specific email or account across the machine. Use when the user says 'is my Mac hacked', 'check if my Mac is compromised', 'did someone access my machine', shows a suspicious sign-in, or wants a security audit of their laptop."
+description: "Run a read-only compromise triage on a macOS machine: accounts, remote access, listening ports, launchd/cron persistence, code signatures of every launch item and process, DYLD injection, TCC privacy grants, browser extensions, MDM/config profiles, system hardening (FileVault/SIP/Gatekeeper/firewall), and the Claude hooks / MCP / Chrome agent surface. Trace a specific email or account across the machine. Use when the user says 'is my Mac hacked', 'check if my Mac is compromised', 'did someone access my machine', shows a suspicious sign-in, or wants a security audit of their laptop."
 allowed-tools: Read, Bash, Grep, Glob, AskUserQuestion
 ---
 
@@ -60,7 +60,26 @@ ever created. Reconstruct it from browser history before you rule. See
    gracefully without it. Offer to re-run those with `sudo` only if something
    upstream looks off.
 
-3. **If the user named an email, account, or name, trace it:**
+3. **Run the deep pass** when the quick scan is clean but the user is still worried, or whenever a finding needs an owner:
+   ```bash
+   bash "$SKILL_DIR/scripts/deep.sh"            # 30-day recent-change window
+   bash "$SKILL_DIR/scripts/deep.sh" --days 7
+   ```
+   It verifies the code signature of every LaunchAgent/Daemon executable and every
+   non-Apple running process (`APPLE` / `DEVID(name)` / `APPSTORE` are normal;
+   `ADHOC` is normal under Homebrew and dev toolchains, a lead anywhere else;
+   `UNSIGNED` outside those paths is a strong lead), and adds what `scan.sh`
+   does not cover: DYLD injection, login hooks, PrivilegedHelperTools, `~/.ssh/rc`,
+   shell-profile `curl | sh` patterns, all-user listeners with owners via
+   `netstat`, sshd / Screen Sharing state without sudo, TCC grants (needs Full
+   Disk Access on the terminal), quarantine download history, executables in
+   `/tmp` and `/Users/Shared`, and the agent surface: Claude hooks, MCP servers,
+   Chrome native-messaging hosts. `[WARN]` is a lead, not a verdict — every WARN
+   must be explained in the report by naming its owner or calling it unexplained.
+   `[ROOT]` lines are the sudo commands the user can run with the `!` prefix.
+   Save the full output to the scratchpad; the terminal shows only a few lines.
+
+4. **If the user named an email, account, or name, trace it:**
    ```bash
    bash "$SKILL_DIR/scripts/trace.sh" "someone@gmail.com"
    ```
@@ -70,14 +89,14 @@ ever created. Reconstruct it from browser history before you rule. See
    Read `references/tracing.md` for how to interpret an `AddSession` / `rejected`
    sequence.
 
-4. **Interpret, don't dump.** Turn FINDINGS into a short verdict. The default
+5. **Interpret, don't dump.** Turn FINDINGS into a short verdict. The default
    posture for a well-kept dev Mac is *clean* — say so plainly when it's true,
    with the evidence. Only escalate on a real finding (an `authorized_keys` you
    can't account for, a LaunchDaemon you don't recognize, an externally-bound
    listener, an MDM profile, an SSH key on a linked service whose private half
    isn't local). `references/findings.md` maps each signal to benign-vs-worrying.
 
-5. **Propose remediation as choices, never act.** Use `AskUserQuestion` with
+6. **Propose remediation as choices, never act.** Use `AskUserQuestion` with
    concrete options (rotate this token / delete that key / disable that service).
    The user clicks. This skill's tools cannot change state and must not try.
 
