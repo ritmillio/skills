@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- `worktree-janitor`: census every worktree of a repo in one table — uncommitted,
+  unpushed, commit age, PR state from a single `gh` call, the dev server whose cwd
+  is inside it, a live relay — with a SAFE / ASK / KEEP verdict. `prune.sh` is a
+  dry run until `--apply`, re-checks each path, stops only servers inside that
+  worktree, never `--force`s unless told, and deletes a local branch only when
+  its PR merged.
+- `memory-hygiene`: audit a Claude Code auto-memory directory against the real
+  load limit (200 lines or ~25k chars, whichever first — measured, not assumed),
+  list the feedback rules that sit below the cut, orphans, broken links,
+  near-duplicates and finished project memories; then archive (never delete),
+  shorten lines and move rules to the top after approval. Session-wrap mode files
+  one topic memory and one short index line.
+- `safe-migration`: no longer tells the agent to run the generator blindly. New
+  `preflight.sh` reads the repo's rule files; a frozen journal switches the
+  workflow to hand-written, idempotent forward SQL. The next prefix now counts
+  files on the remote default branch too, so a migration merged since branching
+  is never reused.
+- `morning-brief`: an opt-in BUSINESS section (`business.txt`) — inbox waiting on
+  a reply, Stripe events, PostHog signups, prod errors via `vercel-triage`, and
+  due/overdue tasks (a markdown checklist is read by the script, a task board by
+  the agent). Missing tools print "not connected", never a guess. The brief ends
+  with a Top 3 for today, and can file new action items on an explicit yes.
+
 - `safe-migration`: the boring, safe Drizzle migration ritual for a repo whose
   migration directory has already been broken once. Reads the repo's own rules,
   derives the next prefix from disk (not memory), greps every generated file for

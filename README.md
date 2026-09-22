@@ -17,6 +17,11 @@ The installer's whole job is putting the folder where each one looks.
 | [`draft-plan`](skills/engineering/draft-plan) | Turn an investigation or conversation into a written plan doc: verified diagnosis, explicit in/out scope, workstreams with proofs of done, sequencing gates, open questions. The doc shape `shred-plan` was built to check — chain them. |
 | [`reclaim`](skills/engineering/reclaim) | Give a pinned dev machine back. Reads the System-vs-User CPU split first, because the process at the top of the list is usually a symptom — `launchservicesd` at 300% is churn, not work. Reaps stale build watchers, caps the test runner, and says plainly when only a reboot will do. |
 | [`telegram-notify`](skills/productivity/telegram-notify) | Telegram bot pings when an agent finishes a task (Stop hook), lands a commit, or a relay run starts/lands/halts/ends. Ships the sender script and walks through BotFather setup and hook wiring. |
+| [`safe-migration`](skills/engineering/safe-migration) | The boring, safe Drizzle migration ritual. Reads the repo's own rule first — a frozen journal means hand-written, idempotent SQL and never the generator — takes the next prefix from disk *and* the default branch, greps for silent `DROP`s, and lands schema and migration in one commit. |
+| [`vercel-triage`](skills/engineering/vercel-triage) | Turn a raw `vercel logs` dump into a triage: dedupe the CLI's repeated events, group by status and path, 5xx first. Read-only. |
+| [`morning-brief`](skills/productivity/morning-brief) | A founder's start of day in one screen: repos and PRs, an opt-in business block (inbox waiting on you, Stripe events, signups, prod errors, overdue tasks — from whatever tools are connected), news from your own feeds, and a Top 3 for today. |
+| [`worktree-janitor`](skills/engineering/worktree-janitor) | Eighty agent worktrees, one table: uncommitted, unpushed, PR state, the dev server holding a port, and a SAFE / ASK / KEEP verdict. Removes only what you pick, after re-checking each. |
+| [`memory-hygiene`](skills/productivity/memory-hygiene) | Claude Code loads only the head of `MEMORY.md`. Shows how much never reaches the agent — usually the rules — then archives finished project memories, shortens the index and moves rules to the top. Plus a session-wrap mode. |
 
 ## Install
 
