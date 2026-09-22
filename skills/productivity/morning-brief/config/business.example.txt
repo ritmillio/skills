@@ -1,0 +1,14 @@
+# morning-brief — BUSINESS section (opt-in). Copy to
+# ~/.config/morning-brief/business.txt; delete the lines you don't want.
+# Format:  section | provider | options
+# The script reads `tasks | file` itself; every other line becomes an
+# AGENT-FILL instruction the agent answers with its connected tools (MCP or CLI).
+# A provider that is not connected is reported as "not connected", never guessed.
+
+inbox    | microsoft365  | unread needing a reply, top 5
+# inbox  | gmail         | unread needing a reply, top 5
+revenue  | stripe        | new subscriptions, cancellations, failed payments
+product  | posthog       | signups and active users vs the day before
+prod     | vercel-triage | production errors, deduped
+tasks    | notion        | the task board: due today, overdue, in progress
+tasks    | file          | ~/notes/TODO.md

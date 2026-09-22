@@ -1,6 +1,6 @@
 # morning-brief — configuration
 
-Two files, both plain text, `#` comments ignored, one entry per line. Default
+Two files (plus an optional third for the BUSINESS section), all plain text, `#` comments ignored, one entry per line. Default
 dir `~/.config/morning-brief/`; override with `$MORNING_BRIEF_CONFIG`. If neither
 exists the skill falls back to the shipped `config/*.example.txt` and says so.
 
@@ -15,6 +15,31 @@ Absolute paths to the repos you want summarised:
 
 Per repo the brief reports commits in the window, current branch, uncommitted
 count, and — if `gh` is authed — open PRs. It also flags a live relay (`.loop/`).
+
+## business.txt (optional)
+
+Its presence turns on the BUSINESS section. One line per source:
+
+```
+section | provider | options
+inbox   | microsoft365  | unread needing a reply, top 5
+revenue | stripe        | new subscriptions, cancellations, failed payments
+product | posthog       | signups and active users vs the day before
+prod    | vercel-triage | production errors, deduped
+tasks   | notion        | the task board: due today, overdue, in progress
+tasks   | file          | ~/notes/TODO.md
+```
+
+- `tasks | file | <path>` is read by the script: markdown checkboxes (`- [ ]`),
+  with `due: YYYY-MM-DD`, `@YYYY-MM-DD` or `📅 YYYY-MM-DD` dates; it prints open,
+  overdue and due-soon counts.
+- Every other line is printed as `AGENT-FILL: <section> via <provider>`. The agent
+  answers it with its connected tools (MCP servers, or an authed CLI such as
+  `stripe`). No credentials live in this file or in the script.
+- Not connected = one "not connected" line in the brief. Delete a line to stop
+  asking for it.
+- Providers are free text; name what your agent has (`gmail`, `hubspot`,
+  `linear`, `plausible` …) and the agent maps it to a tool.
 
 ## sources.txt
 
