@@ -1,0 +1,9 @@
+{
+  "name": "worktree-janitor",
+  "description": "Census and clean up a repo's git worktrees: one table with branch, uncommitted and unpushed work, last commit age, PR state (merged/closed/open/draft/none), any dev server running inside it, and a SAFE / ASK / KEEP verdict — then remove only the ones the user picks, after re-checking each. Use when the user says 'clean up worktrees', 'too many worktrees', 'which worktrees can I delete', 'prune worktrees', 'what's running on port 3xxx', 'free disk', or has dozens of sibling <repo>-* checkouts.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}

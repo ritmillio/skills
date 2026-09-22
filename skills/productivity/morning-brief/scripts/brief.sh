@@ -6,15 +6,21 @@
 # Config dir: $MORNING_BRIEF_CONFIG, else ~/.config/morning-brief, else the
 # shipped config/*.example.txt next to this script.
 #
-# Usage: brief.sh [--since 24h|48h|7d] [--internal] [--news]
+# Usage: brief.sh [--since 24h|48h|7d] [--internal] [--news] [--business]
+#   --internal / --news / --business each limit the run to that one section.
+#   BUSINESS runs only when business.txt exists in the config dir (opt-in); the
+#   script prints the enabled sources as AGENT-FILL lines and reads task files
+#   itself. Inbox, revenue, product and prod-health numbers come from the agent's
+#   connected tools, never from this script.
 set -uo pipefail
 
-SINCE="24h"; DO_INT=1; DO_NEWS=1
+SINCE="24h"; DO_INT=1; DO_NEWS=1; DO_BIZ=1
 while [ $# -gt 0 ]; do
   case "$1" in
     --since) SINCE="${2:-24h}"; shift 2 ;;
-    --internal) DO_NEWS=0; shift ;;
-    --news) DO_INT=0; shift ;;
+    --internal) DO_NEWS=0; DO_BIZ=0; shift ;;
+    --news) DO_INT=0; DO_BIZ=0; shift ;;
+    --business) DO_INT=0; DO_NEWS=0; shift ;;
     *) shift ;;
   esac
 done
@@ -23,6 +29,7 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 CFG="${MORNING_BRIEF_CONFIG:-$HOME/.config/morning-brief}"
 REPOS_FILE="$CFG/repos.txt";     [ -f "$REPOS_FILE" ]   || REPOS_FILE="$SELF_DIR/../config/repos.example.txt"
 SOURCES_FILE="$CFG/sources.txt"; [ -f "$SOURCES_FILE" ] || SOURCES_FILE="$SELF_DIR/../config/sources.example.txt"
+BUSINESS_FILE="$CFG/business.txt"   # opt-in: no file, no BUSINESS section
 
 hr()  { printf '\n\033[1m%s\033[0m\n' "$1"; }
 sub() { printf '  \033[36m%s\033[0m\n' "$1"; }
@@ -149,6 +156,54 @@ for raw in open(sources_file, encoding="utf-8"):
 if not any_source:
     print("  (no sources configured — edit sources.txt)")
 PY
+fi
+
+# ---------------------------------------------------------------- BUSINESS
+if [ "$DO_BIZ" -eq 1 ]; then
+  hr "BUSINESS"
+  if [ ! -f "$BUSINESS_FILE" ]; then
+    sub "(off — copy config/business.example.txt to $BUSINESS_FILE to enable)"
+  else
+    case "$SINCE" in *h) HOURS="${SINCE%h}";; *d) HOURS=$(( ${SINCE%d} * 24 ));; *) HOURS=24;; esac
+    python3 - "$BUSINESS_FILE" "$HOURS" <<'PY'
+import os, re, sys
+from datetime import date, datetime, timedelta
+
+cfg, hours = sys.argv[1], int(sys.argv[2])
+today = date.today()
+DUE = re.compile(r"(?:due[: ]*|📅\s*|@)(\d{4}-\d{2}-\d{2})", re.I)
+seen = False
+for raw in open(cfg, encoding="utf-8"):
+    raw = raw.split("#", 1)[0].strip()
+    if not raw:
+        continue
+    parts = [x.strip() for x in raw.split("|")]
+    section, provider = parts[0].lower(), (parts[1] if len(parts) > 1 else "").lower()
+    opts = parts[2] if len(parts) > 2 else ""
+    seen = True
+    if section == "tasks" and provider == "file":
+        path = os.path.expanduser(opts)
+        print(f"  \033[1mtasks\033[0m  (file {opts})")
+        if not os.path.isfile(path):
+            print("      (file not found)")
+            continue
+        open_items = []
+        for line in open(path, encoding="utf-8", errors="replace"):
+            if re.match(r"\s*[-*] \[ \]", line):
+                m = DUE.search(line)
+                due = datetime.strptime(m.group(1), "%Y-%m-%d").date() if m else None
+                open_items.append((due, re.sub(r"^\s*[-*] \[ \]\s*", "", line).strip()))
+        overdue = [x for x in open_items if x[0] and x[0] < today]
+        due_now = [x for x in open_items if x[0] and today <= x[0] <= today + timedelta(days=1)]
+        print(f"      {len(open_items)} open, {len(overdue)} overdue, {len(due_now)} due today/tomorrow")
+        for d, t in sorted(overdue + due_now)[:8]:
+            print(f"      • {'OVERDUE ' if d < today else ''}{d}  {t[:90]}")
+        continue
+    print(f"  AGENT-FILL: {section} via {provider}" + (f"  ({opts})" if opts else "") + f"  window {hours}h")
+if not seen:
+    print("  (business.txt has no enabled lines)")
+PY
+  fi
 fi
 
 printf '\n\033[2m— assembled read-only; personalise config at %s —\033[0m\n' "$CFG"

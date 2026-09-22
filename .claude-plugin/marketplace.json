@@ -76,8 +76,8 @@
     {
       "name": "safe-migration",
       "source": "./skills/engineering/safe-migration",
-      "description": "Run the safe Drizzle migration ritual for a repo with a fragile migration directory: pick the next free prefix, generate, grep the SQL for destructive operations, enforce IF EXISTS, run the migration check, and confirm schema lands with its migration in one commit. Use when the user changes a Drizzle schema file, says 'generate a migration', 'add a column/table', 'db:generate', or is about to ship a schema change.",
-      "version": "0.1.0"
+      "description": "Run the safe Drizzle migration ritual for a repo with a fragile migration directory: read the repo's own rule first (a frozen journal means hand-written SQL, never the generator), pick the next free prefix from disk and the default branch, grep the SQL for destructive operations, enforce IF [NOT] EXISTS, run the migration check, and confirm schema lands with its migration in one commit. Use when the user changes a Drizzle schema file, says 'generate a migration', 'add a column/table', 'db:generate', or is about to ship a schema change.",
+      "version": "0.2.0"
     },
     {
       "name": "vercel-triage",
@@ -88,7 +88,19 @@
     {
       "name": "morning-brief",
       "source": "./skills/productivity/morning-brief",
-      "description": "Produce a one-screen morning brief: an INTERNAL section (git activity, open PRs, and relay ledgers across the user's repos) and an EXTERNAL section (news pulled from sources listed in a config file), optionally delivered to Telegram. Use when the user says 'morning brief', 'daily digest', 'catch me up', 'what happened overnight', 'get the news', or wants a start-of-day summary without browsing.",
+      "description": "Produce a one-screen founder morning brief: INTERNAL (git activity, open PRs, relay ledgers across the user's repos), BUSINESS (opt-in: inbox needing a reply, Stripe revenue events, PostHog signups, production errors, due and overdue tasks, read through whatever tools are connected), EXTERNAL (news from sources in a config file), ending in a Top 3 for today; optionally delivered to Telegram. Use when the user says 'morning brief', 'daily digest', 'founder brief', 'catch me up', 'what happened overnight', 'what needs me today', 'get the news', or wants a start-of-day summary without browsing.",
+      "version": "0.2.0"
+    },
+    {
+      "name": "worktree-janitor",
+      "source": "./skills/engineering/worktree-janitor",
+      "description": "Census and clean up a repo's git worktrees: one table with branch, uncommitted and unpushed work, last commit age, PR state (merged/closed/open/draft/none), any dev server running inside it, and a SAFE / ASK / KEEP verdict — then remove only the ones the user picks, after re-checking each. Use when the user says 'clean up worktrees', 'too many worktrees', 'which worktrees can I delete', 'prune worktrees', 'what's running on port 3xxx', 'free disk', or has dozens of sibling <repo>-* checkouts.",
+      "version": "0.1.0"
+    },
+    {
+      "name": "memory-hygiene",
+      "source": "./skills/productivity/memory-hygiene",
+      "description": "Audit and clean a Claude Code auto-memory directory so the index actually loads: count how much of MEMORY.md reaches the agent at startup (200 lines / ~25k chars), find overlong index lines, broken and orphan entries, near-duplicates, frontmatter errors, and feedback rules that sit below the cut, then archive finished project memories and shorten the index after the user approves. Also a session-wrap mode that files one topic memory plus one short index line. Use when the user says 'clean up memory', 'MEMORY.md is too long', 'memory got truncated', 'tidy memories', 'wrap up the session', 'save what we learned', or when a startup warning says the memory index was cut off.",
       "version": "0.1.0"
     }
   ]
