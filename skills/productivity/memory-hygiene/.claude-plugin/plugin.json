@@ -1,0 +1,9 @@
+{
+  "name": "memory-hygiene",
+  "description": "Audit and clean a Claude Code auto-memory directory so the index actually loads: count how much of MEMORY.md reaches the agent at startup (200 lines / ~25k chars), find overlong index lines, broken and orphan entries, near-duplicates, frontmatter errors, and feedback rules that sit below the cut, then archive finished project memories and shorten the index after the user approves. Also a session-wrap mode that files one topic memory plus one short index line. Use when the user says 'clean up memory', 'MEMORY.md is too long', 'memory got truncated', 'tidy memories', 'wrap up the session', 'save what we learned', or when a startup warning says the memory index was cut off.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}
