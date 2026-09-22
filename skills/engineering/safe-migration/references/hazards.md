@@ -10,7 +10,8 @@ ceremony.
 already exists. Tools that order by filename now have two "0034"s; apply order
 becomes ambiguous and the journal disagrees with the disk.
 
-**Caught by:** step 2 derives the next number from `ls | sort | tail`, never from
+**Caught by:** the preflight (step 1) derives the next number from the disk *and*
+the remote default branch (`ls` + `git ls-tree`), never from
 memory or from "the number in my head." Known historical duplicates are
 tolerated by the check but you never *add* one.
 
@@ -21,7 +22,7 @@ can't tell a rename from a drop-plus-add — so it emits `DROP COLUMN old` +
 `ADD COLUMN new`, silently destroying data on apply. Or a refactor removes a
 field you meant to keep and the generator writes a `DROP` you never intended.
 
-**Caught by:** step 5 greps every generated file for `DROP`/`TRUNCATE`/
+**Caught by:** step 5 greps every migration file for `DROP`/`TRUNCATE`/
 `ALTER … DROP`/`DELETE` and shows the hits to the user *before the file is kept*.
 A surprising `DROP` means: discard the file, fix the schema (use the generator's
 rename prompt, or restore the field), regenerate. A `DROP` is only kept when the
@@ -35,8 +36,8 @@ says the column exists, the DB says it doesn't, and every query drizzle builds
 references a dead column — prod throws until someone finds it. (This is a real
 incident; it ran for weeks.)
 
-**Caught by:** step 6 and step 8. Any hand-written destructive SQL must be paired
-with the matching schema edit *in the same working tree*, and step 8 refuses to
+**Caught by:** steps 4a and 7. Any hand-written destructive SQL must be paired
+with the matching schema edit *in the same working tree*, and step 7 refuses to
 finish unless both the schema file and the migration file are staged in the same
 commit. The invariant is: **schema and migration are never separated.**
 
@@ -62,7 +63,22 @@ do NOT run the directory forward from zero — restore from a known-good snapsho
 then apply only forward migrations. Read the migrations README's incident log
 before touching bootstrap.
 
+## 6. Running the generator against a frozen journal
+
+**Shape:** the repo froze its Drizzle journal (it stops at some index while
+hand-written files keep landing past it). `drizzle-kit generate` diffs the schema
+against the *last snapshot in the journal*, months stale, so it emits a file that
+re-creates tables that already exist, re-adds columns, or drops things added by
+hand since. Applied, it fails at best and destroys data at worst — and it also
+appends to the journal the repo meant to keep frozen.
+
+**Caught by:** the preflight greps the repo's own rule files for the frozen-journal
+/ "do not run generate" rule and prints `mode: hand`. In that mode the skill never
+runs the generator and hand-writes idempotent forward SQL (step 4a). If a
+generated file and a journal/snapshot change appear anyway, delete both before
+anything else.
+
 ## The one-line invariant
 
-Prefix from disk · grep every generated file · schema and migration in one commit
+Repo rule first · prefix from disk and main · grep every migration · schema and migration in one commit
 · never push to a shared DB · apply to prod before the dependent code deploys.

@@ -1,6 +1,6 @@
 ---
 name: safe-migration
-description: "Run the safe Drizzle migration ritual for a repo with a fragile migration directory: pick the next free prefix, generate, grep the SQL for destructive operations, enforce IF EXISTS, run the migration check, and confirm schema lands with its migration in one commit. Use when the user changes a Drizzle schema file, says 'generate a migration', 'add a column/table', 'db:generate', or is about to ship a schema change."
+description: "Run the safe Drizzle migration ritual for a repo with a fragile migration directory: read the repo's own rule first (a frozen journal means hand-written SQL, never the generator), pick the next free prefix from disk and the default branch, grep the SQL for destructive operations, enforce IF [NOT] EXISTS, run the migration check, and confirm schema lands with its migration in one commit. Use when the user changes a Drizzle schema file, says 'generate a migration', 'add a column/table', 'db:generate', or is about to ship a schema change."
 allowed-tools: Read, Bash, Grep, Glob, Edit, AskUserQuestion
 ---
 
@@ -36,8 +36,10 @@ project's conventions move, rather than hardcoding them.
 1. **Reused prefix** — a new `0034_…` when `0034` already exists. Derive the
    next number from what's on disk, never from memory.
 2. **Silent destructive SQL** — `db:generate` emitting `DROP COLUMN`/`DROP TABLE`
-   because a rename or removed field read as a deletion. Every generated file is
-   grepped for destructive ops and shown to the user before it's kept.
+   because a rename or removed field read as a deletion, or because the journal
+   it diffs against is frozen and stale. Repos that froze their journal forbid the
+   generator outright; the preflight finds that rule and the skill hand-writes the
+   SQL instead. Every migration is grepped for destructive ops either way.
 3. **Schema/migration drift** — a hand-written `ALTER … DROP` with no matching
    edit to the schema file (the incident that broke prod for weeks). Schema and
    migration must land in the **same commit**; the skill refuses to finish
@@ -47,49 +49,63 @@ project's conventions move, rather than hardcoding them.
 
 ## Workflow
 
-1. **Load the repo's rules.** Read the migrations directory's own README (search
-   `**/migrations/README.md`) and the root `CLAUDE.md`/`AGENTS.md` migration
-   section. They are the source of truth for prefix scheme, the check command,
-   and repo-specific hazards. Where they differ from this file, they win.
-
-2. **Find the next free prefix — from disk, not memory:**
+1. **Preflight — let the repo tell you its rules:**
    ```bash
-   ls <migrations-dir>/*.sql | sed 's#.*/##' | sort | tail -5
+   bash "$SKILL_DIR/scripts/preflight.sh" <repo> [migrations-dir]
    ```
-   Next prefix is `lastNumber + 1`, zero-padded to the repo's width. If the
-   directory has historical duplicate prefixes, tolerate them but do not add a
-   new collision — scan before naming.
+   It finds the migrations directory, greps `AGENTS.md`, `CLAUDE.md` and the
+   migrations `README.md` for a frozen-journal / "do not run generate" rule,
+   derives the next free prefix from the disk **and** the remote default branch
+   (a migration merged to `main` since you branched still counts), lists the
+   historical duplicate prefixes, and names the repo's check script. Then read
+   those rule files yourself — the script only finds them; where they differ from
+   this skill, they win.
+
+2. **Pick the mode the preflight printed.**
+   - `mode: hand` — the repo forbids the generator (typically: the Drizzle
+     journal is frozen, so `drizzle-kit generate` diffs against a stale snapshot
+     and emits duplicate or destructive SQL). **Do not run `db:generate` /
+     `drizzle-kit generate`, not even "just to see".** Go to 3, then 4a.
+   - `mode: generate` — no such rule. Go to 3, then 4b.
 
 3. **Edit the schema file(s)** for the actual change, matching the file's
-   existing conventions (read them; do not assume).
+   existing conventions (read them; do not assume). If the repo has two schema
+   trees, change the one its rules call canonical.
 
-4. **Generate:**
+4a. **Hand-write the forward migration** (`mode: hand`):
+   - Name it `<next-prefix>_<snake_case_what>.sql` in the migrations directory.
+     Do not touch the journal or snapshot files.
+   - Every statement idempotent: `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT
+     EXISTS`, `CREATE INDEX IF NOT EXISTS`, `DROP … IF EXISTS`. For a constraint
+     or type that has no `IF NOT EXISTS`, wrap it in a `DO $$ … EXCEPTION WHEN
+     duplicate_object THEN NULL; END $$;` block.
+   - Match the exact column types, defaults and names the schema edit declares —
+     read the schema diff and the SQL side by side.
+   - If the repo has a forward runner with a floor prefix (read its README), make
+     sure the new prefix is above the floor, or it will never be applied.
+
+4b. **Generate** (`mode: generate` only):
    ```bash
    <pkg-manager> db:generate     # e.g. pnpm db:generate -> drizzle-kit generate
    ```
-   Then find the file it wrote (newest `.sql`).
+   Find the file it wrote (newest `.sql`) and rename it if its prefix collides.
 
-5. **Grep the generated SQL for destructive operations and SHOW the user:**
+5. **Grep the SQL for destructive operations and SHOW the user** (both modes):
    ```bash
    grep -niE 'drop (table|column|constraint|index|type)|truncate|alter .*drop|delete from' <new.sql>
    ```
    Any hit is a stop-and-confirm. A `DROP` is only correct when the user
    genuinely intends to remove something; a `DROP` that surprises you is the
-   `db:generate` hazard firing — do not keep the file, fix the schema and
-   regenerate. See `references/hazards.md`.
+   generator hazard firing — do not keep the file, fix the schema and redo it.
+   A column drop also needs the field removed from the schema in the same commit.
+   See `references/hazards.md`.
 
-6. **Harden hand-written SQL.** If you (not the generator) wrote any SQL, make
-   every statement idempotent — `IF NOT EXISTS` / `IF EXISTS` — and confirm the
-   schema file carries the matching change in this same working tree.
+6. **Run the repo's migration check** (the preflight named it; commonly
+   `pnpm db:check-migrations` or `drizzle-kit check`). Historical-dupe /
+   journal-drift **warnings** are expected on a damaged directory and are fine; a
+   **failure** is not.
 
-7. **Run the repo's migration check** (use what step 1 found, commonly):
-   ```bash
-   <pkg-manager> db:check-migrations   # or drizzle-kit check
-   ```
-   Historical-dupe / journal-drift **warnings** are expected on a damaged
-   directory and are fine; a **failure** is not.
-
-8. **Stage schema + migration together, in one commit.** List the staged files
+7. **Stage schema + migration together, in one commit.** List the staged files
    back to the user and confirm both are present before committing. Never commit
    a migration without its schema change, or vice versa.
 
@@ -104,6 +120,7 @@ project's conventions move, rather than hardcoding them.
 
 ## Report format
 
+- The mode (hand-written vs generated) and the rule that decided it.
 - The change, the new migration filename, and the exact prefix reasoning.
 - The destructive-op grep result — "none" is a result worth stating.
 - Confirmation that schema + migration are staged together.
@@ -111,5 +128,7 @@ project's conventions move, rather than hardcoding them.
 
 ## References
 
+- `scripts/preflight.sh` — read-only: migrations dir, generator rule, next free
+  prefix (disk + remote default branch), duplicate prefixes, check script.
 - `references/hazards.md` — the real incident shapes (reused prefix, silent
   DROP, schema drift, db:push) and how each is caught here.
