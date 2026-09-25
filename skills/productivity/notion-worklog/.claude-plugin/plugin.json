@@ -1,0 +1,9 @@
+{
+  "name": "notion-worklog",
+  "description": "Record every piece of agent work in Notion before calling it done: code, fixes, QA passes (finding rows + summary page), research and plans (doc row linking the repo file), rulings, incidents and long runs, each with a dated work-log entry (did / why / verified / links / open). Targets come from a config file in the host repo. Use at the end of any task that changed or found something, or when the user says 'log this', 'document this in Notion', 'record what we did'.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}
