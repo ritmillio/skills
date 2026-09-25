@@ -1,0 +1,38 @@
+{
+  "$comment": "Copy to <repo>/.agents/notion-worklog.json. Ids come from notion-fetch on each database (collection://… = data source). Property names are case- and space-sensitive; copy them from the fetch output. Delete any record kind you do not use.",
+  "tasks": {
+    "data_source": "collection://00000000-0000-0000-0000-000000000000",
+    "title": "Name",
+    "status": {
+      "property": "Status",
+      "in_progress": "In Progress",
+      "in_review": "In Review",
+      "done": "Done",
+      "new": "Backlog"
+    },
+    "assignee": { "property": "Assignee", "agent": "Agent", "human": "Owner" },
+    "pr_link": "PR link",
+    "id_column": "userDefined:ID",
+    "id_prefix": "TASK-",
+    "defaults": {
+      "Repo": "my-repo",
+      "Project": ["https://www.notion.so/<project-page-id>"]
+    }
+  },
+  "docs": {
+    "data_source": "collection://00000000-0000-0000-0000-000000000000",
+    "title": "Name",
+    "type": { "property": "Type", "spec": "Spec", "wiki": "Wiki", "qa": "Other" }
+  },
+  "decisions": {
+    "data_source": "collection://00000000-0000-0000-0000-000000000000",
+    "title": "Name",
+    "text": "Decision",
+    "status": { "property": "Status", "approved": "Approved", "proposed": "Proposed" },
+    "date": "When"
+  },
+  "incidents": {
+    "data_source": "collection://00000000-0000-0000-0000-000000000000",
+    "title": "Name"
+  }
+}
