@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `vision-pro-ui`: build web apps that look like native visionOS windows —
+  environment layer, tinted glass window, window controls, expanding tab bar,
+  ornament, volumes and immersive mode. `SKILL.md` holds principles, layer model,
+  anti-patterns and a QA checklist; tokens/glass/motion/Tailwind (v3 and v4)/
+  fallbacks, component specs and Lovable prompts live in `references/`.
 - `worktree-janitor`: census every worktree of a repo in one table — uncommitted,
   unpushed, commit age, PR state from a single `gh` call, the dev server whose cwd
   is inside it, a live relay — with a SAFE / ASK / KEEP verdict. `prune.sh` is a

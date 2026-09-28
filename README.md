@@ -22,6 +22,7 @@ The installer's whole job is putting the folder where each one looks.
 | [`morning-brief`](skills/productivity/morning-brief) | A founder's start of day in one screen: repos and PRs, an opt-in business block (inbox waiting on you, Stripe events, signups, prod errors, overdue tasks — from whatever tools are connected), news from your own feeds, and a Top 3 for today. |
 | [`worktree-janitor`](skills/engineering/worktree-janitor) | Eighty agent worktrees, one table: uncommitted, unpushed, PR state, the dev server holding a port, and a SAFE / ASK / KEEP verdict. Removes only what you pick, after re-checking each. |
 | [`memory-hygiene`](skills/productivity/memory-hygiene) | Claude Code loads only the head of `MEMORY.md`. Shows how much never reaches the agent — usually the rules — then archives finished project memories, shortens the index and moves rules to the top. Plus a session-wrap mode. |
+| [`vision-pro-ui`](skills/design/vision-pro-ui) | Web apps that pass as native Apple Vision Pro windows: tinted glass over a real room, ornaments, an expanding vertical tab bar, gaze-style hover glow. Ships tokens, a Safari-safe glass recipe, component specs and Lovable prompts — plus the backdrop-root trap that makes nested glass go flat grey. |
 
 ## Install
 

@@ -1,0 +1,9 @@
+{
+  "name": "vision-pro-ui",
+  "description": "Build web apps that look and behave like native Apple Vision Pro (visionOS) apps — floating glass windows over a room, ornaments, expanding vertical tab bars, gaze-style hover highlights, volumes and immersive spaces. Use when the user asks for 'Vision Pro style', 'visionOS UI', 'spatial computing UI' or 'make it feel like Vision Pro', in Lovable or any React + Tailwind app. Not for iPhone/Mac Liquid Glass or generic glassmorphism.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}
