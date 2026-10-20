@@ -53,8 +53,8 @@ the repo's own rules is a gap, not a style choice.
 
 Read the plan and extract, as a flat list:
 
-- **Codebase claims** — "backend is ready at `/api/mobile/connectors`",
-  "web gates mutations behind an approval card", "uses `@jogai/shared`". Each
+- **Codebase claims** — "backend is ready at `/api/orders`",
+  "web gates mutations behind an approval card", "uses `@acme/shared`". Each
   is verifiable, and each is false often enough to be worth checking.
 - **Assumptions** — anything the plan states about the world that it does not
   verify: environment state, data shape, a dependency being "done", user
