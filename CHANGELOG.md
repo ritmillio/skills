@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- `relay-keeper`: one watcher over every running relay and the machine under them.
+  Reads kernel memory pressure, swap, live paging, load per core and free SSD
+  (not free RAM, which is meaningless on macOS), plus each relay's `.loop/` state.
+  Throttles by holding relay CPU slots with its own PID, so it works on relays of
+  any version and every hold vanishes if the daemon dies; never kills a process or
+  touches a running iteration. Prunes old raw iteration streams when the SSD is
+  short, flags wedged relays and relays outside `caffeinate`, and (opt-in)
+  relaunches a relay that died without ending. `install-keeper.sh` runs it under
+  launchd.
 - `worktree-janitor`: census every worktree of a repo in one table — uncommitted,
   unpushed, commit age, PR state from a single `gh` call, the dev server whose cwd
   is inside it, a live relay — with a SAFE / ASK / KEEP verdict. `prune.sh` is a

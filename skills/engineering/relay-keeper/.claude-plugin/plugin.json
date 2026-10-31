@@ -1,0 +1,9 @@
+{
+  "name": "relay-keeper",
+  "description": "Watch every running relay and the machine under them (RAM, swap, CPU load, SSD) and throttle, drain or flag them before the box crashes. Use when several relays run at once, the Mac is slow or swapping while relays run, a relay seems stuck or died overnight, the user asks to watch or babysit all relays, or before leaving relays running unattended.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}
