@@ -33,6 +33,29 @@ KEEP_AWAKE_NOTE=""
 CAFF=()
 while IFS= read -r line; do [[ -n "$line" ]] && CAFF+=("$line"); done < <(keep_awake_prefix)
 
+# relay-keeper: one machine-wide watcher over every relay (RAM, swap, load, SSD).
+# Start it if it is not already running, so a second and third relay cannot
+# thrash the box unobserved. Opt out with RELAY_NO_KEEPER=1.
+KEEPER_NOTE="relay-keeper: not found (install the relay-keeper skill to guard the machine)"
+if [[ "${RELAY_NO_KEEPER:-0}" != 1 ]]; then
+  KEEPER=""
+  for d in "$HERE/../../relay-keeper" ~/.agents/skills/relay-keeper ~/.claude/skills/relay-keeper \
+           ~/.codex/skills/relay-keeper ./.claude/skills/relay-keeper; do
+    [[ -x "$d/scripts/keeper.sh" ]] && KEEPER="$d/scripts/keeper.sh" && break
+  done
+  if [[ -n "$KEEPER" ]]; then
+    if pgrep -f 'relay-keeper/scripts/keeper\.sh.*--loop' >/dev/null 2>&1 \
+       || launchctl list 2>/dev/null | grep -q 'ai.clausis.relay-keeper'; then
+      KEEPER_NOTE="relay-keeper: already watching this machine"
+    else
+      mkdir -p ~/.claude/relay-keeper
+      nohup "$KEEPER" --apply --loop 60 --quiet >>~/.claude/relay-keeper/keeper.out 2>&1 &
+      disown "$!" 2>/dev/null || true
+      KEEPER_NOTE="relay-keeper: started (pid $!), holds new iterations when load/swap/SSD run short; log ~/.claude/relay-keeper/keeper.log"
+    fi
+  fi
+fi
+
 nohup "${CAFF[@]}" "$HERE/relay.sh" "${args[@]}" >>"$STATE/relay.stdout" 2>&1 &
 PID=$!
 echo "$PID" > "$STATE/relay.pid"
@@ -42,6 +65,7 @@ sleep 2
 cat <<INFO
 relay running detached, pid $PID
   $KEEP_AWAKE_NOTE
+  $KEEPER_NOTE
 
   watch : $STATE/watch.sh          (live dashboard: contract, commits, stream)
   stream: tail -f $STATE/live.log  (every tool call as it happens)

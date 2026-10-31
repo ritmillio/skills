@@ -183,9 +183,10 @@ keyed by owner PID and reclaimed when an owner dies. The wait is bounded by
 still cannot get a slot proceeds anyway and says so in the log. Set
 `--max-parallel 1` for strict serialisation, `0` to disable the semaphore.
 
-With several relays running, install `relay-keeper`: it watches RAM, swap, load
-and SSD across all of them and holds slots to stop new iterations when the box is
-close to falling over.
+`launch.sh` starts `relay-keeper` if it is installed and not already running (opt
+out with `RELAY_NO_KEEPER=1`): it watches RAM, swap, load and SSD across all
+relays and holds slots to stop new iterations when the box is close to falling
+over. The launch output says whether it is watching; read that line back.
 
 Cap the runners too. `VITEST_MAX_THREADS` / `VITEST_MAX_FORKS` (and
 `TURBO_CONCURRENCY`) in `~/.claude/settings.json`'s `env` block reach every

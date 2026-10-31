@@ -10,7 +10,8 @@
   touches a running iteration. Prunes old raw iteration streams when the SSD is
   short, flags wedged relays and relays outside `caffeinate`, and (opt-in)
   relaunches a relay that died without ending. `install-keeper.sh` runs it under
-  launchd.
+  launchd. `relay/launch.sh` now starts it automatically when it is installed and
+  not yet running (`RELAY_NO_KEEPER=1` opts out) and prints which it did.
 - `worktree-janitor`: census every worktree of a repo in one table — uncommitted,
   unpushed, commit age, PR state from a single `gh` call, the dev server whose cwd
   is inside it, a live relay — with a SAFE / ASK / KEEP verdict. `prune.sh` is a
