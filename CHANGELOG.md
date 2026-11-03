@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `free-disk`: scan what fills the SSD, then delete only regenerable output —
+  `.next`, `.turbo`, `.nuxt`, `.svelte-kit`, `.parcel-cache`, Rust `target` next to a
+  `Cargo.toml`, `$CARGO_TARGET_DIR`, user-listed extra dirs — and brew/npm/pnpm/yarn/
+  uv/pip caches. Dry run until `--apply`; skips any checkout holding a live dev
+  process's cwd and all Rust targets while cargo runs. Worktrees, model caches,
+  Docker and Downloads only on an explicit pick.
 - `worktree-janitor`: census every worktree of a repo in one table — uncommitted,
   unpushed, commit age, PR state from a single `gh` call, the dev server whose cwd
   is inside it, a live relay — with a SAFE / ASK / KEEP verdict. `prune.sh` is a

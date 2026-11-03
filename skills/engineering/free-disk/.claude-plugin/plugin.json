@@ -1,0 +1,9 @@
+{
+  "name": "free-disk",
+  "description": "Get the SSD back without losing work: find what is eating the disk, delete only regenerable build output and package caches, skip any tree with a live dev server, and hand worktree removal to worktree-janitor.",
+  "version": "0.1.0",
+  "author": { "name": "Zoltan Fodor", "url": "https://github.com/ritmillio" },
+  "homepage": "https://github.com/ritmillio/skills",
+  "repository": "https://github.com/ritmillio/skills",
+  "license": "MIT"
+}

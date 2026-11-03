@@ -22,6 +22,7 @@ The installer's whole job is putting the folder where each one looks.
 | [`morning-brief`](skills/productivity/morning-brief) | A founder's start of day in one screen: repos and PRs, an opt-in business block (inbox waiting on you, Stripe events, signups, prod errors, overdue tasks — from whatever tools are connected), news from your own feeds, and a Top 3 for today. |
 | [`worktree-janitor`](skills/engineering/worktree-janitor) | Eighty agent worktrees, one table: uncommitted, unpushed, PR state, the dev server holding a port, and a SAFE / ASK / KEEP verdict. Removes only what you pick, after re-checking each. |
 | [`memory-hygiene`](skills/productivity/memory-hygiene) | Claude Code loads only the head of `MEMORY.md`. Shows how much never reaches the agent — usually the rules — then archives finished project memories, shortens the index and moves rules to the top. Plus a session-wrap mode. |
+| [`free-disk`](skills/engineering/free-disk) | The disk does not fill with code, it fills with build output: one machine had 350 GB of `.next` caches across 45 worktrees. Deletes only what rebuilds itself, skips any checkout with a live dev server, and leaves deleting checkouts to `worktree-janitor`. |
 
 ## Install
 
