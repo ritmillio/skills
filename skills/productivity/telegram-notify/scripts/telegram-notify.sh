@@ -56,7 +56,7 @@ send() {  # send <html-body>
   return 0
 }
 
-# "clausis.ai · feat/foo" — the header every message carries, so you know which
+# "my-app · feat/foo" — the header every message carries, so you know which
 # checkout pinged you when three sessions are running.
 where() {
   local d="${1:-$PWD}" top br

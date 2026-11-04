@@ -9,8 +9,8 @@ exists the skill falls back to the shipped `config/*.example.txt` and says so.
 Absolute paths to the repos you want summarised:
 
 ```
-/Users/you/Developer/clausis.ai
-/Users/you/Developer/clausis-scrapers
+/Users/you/Developer/my-app
+/Users/you/Developer/my-app-workers
 ```
 
 Per repo the brief reports commits in the window, current branch, uncommitted

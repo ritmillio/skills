@@ -7,7 +7,7 @@
 #   install-guard.sh --uninstall
 set -uo pipefail
 
-LABEL="ai.clausis.reclaim-guard"
+LABEL="dev.reclaim.guard"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 GUARD="$(cd "$(dirname "$0")" && pwd)/guard.sh"
 INTERVAL=600
