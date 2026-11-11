@@ -108,6 +108,12 @@
       "source": "./skills/engineering/free-disk",
       "description": "Free disk space on a dev machine without losing work: scan what is eating the SSD, delete only regenerable build output (.next, .turbo, Rust target) and package caches, skip any checkout with a live dev server, then hand worktree removal to worktree-janitor. Use when the user says 'my mac is full', 'disk full', 'free up space', or a build fails with ENOSPC.",
       "version": "0.1.0"
+    },
+    {
+      "name": "model-router",
+      "source": "./skills/productivity/model-router",
+      "description": "Pick the cheapest model and effort that can do a task well, BEFORE doing it or spawning agents. Cheap probe (max 3 tool calls), five-axis score, a one-line route card (model + effort + delegate or not) for the main session, each subagent and each workflow agent. Use at the start of any non-trivial task, before spawning subagents, or when the user says 'which model', 'what effort', 'save tokens', 'don't burn tokens'.",
+      "version": "0.1.0"
     }
   ]
 }

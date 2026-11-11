@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `model-router`: triage a task before doing it. Probe (max 3 tool calls), score scope,
+  ambiguity, reasoning depth, risk and verification 0-2, route to small/mid/large/frontier
+  x effort, print a one-line route card. Risk floors, cheap-gather/strong-decide split,
+  escalate one tier only after a failed check. Host repos add overrides in
+  `.agents/model-router.md`.
 - `free-disk`: scan what fills the SSD, then delete only regenerable output —
   `.next`, `.turbo`, `.nuxt`, `.svelte-kit`, `.parcel-cache`, Rust `target` next to a
   `Cargo.toml`, `$CARGO_TARGET_DIR`, user-listed extra dirs — and brew/npm/pnpm/yarn/

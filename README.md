@@ -23,6 +23,7 @@ The installer's whole job is putting the folder where each one looks.
 | [`worktree-janitor`](skills/engineering/worktree-janitor) | Eighty agent worktrees, one table: uncommitted, unpushed, PR state, the dev server holding a port, and a SAFE / ASK / KEEP verdict. Removes only what you pick, after re-checking each. |
 | [`memory-hygiene`](skills/productivity/memory-hygiene) | Claude Code loads only the head of `MEMORY.md`. Shows how much never reaches the agent — usually the rules — then archives finished project memories, shortens the index and moves rules to the top. Plus a session-wrap mode. |
 | [`free-disk`](skills/engineering/free-disk) | The disk does not fill with code, it fills with build output: one machine had 350 GB of `.next` caches across 45 worktrees. Deletes only what rebuilds itself, skips any checkout with a live dev server, and leaves deleting checkouts to `worktree-janitor`. |
+| [`model-router`](skills/productivity/model-router) | Pick the cheapest model and effort that can do the job before spending a token: a 3-call probe, a five-axis score, a one-line route card for the session and every subagent. Risk floors keep migrations and auth on the strong model; escalates one tier only after a failed check. |
 
 ## Install
 
